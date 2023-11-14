@@ -3,7 +3,7 @@ This is a Library System Programming Project. It involves creating a database ho
 
 # How to run the app
 1. Install necesarry modules used in the app(requirements list TBA)
-2. Make sure psotgres of some version has been installed on your compulter
+2. Make sure postgres of some version has been installed on your compulter
 3. Check if the postgres server is up and running in the background
 4. Change the following lines for the correct working of the app
 
