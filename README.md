@@ -7,7 +7,7 @@ This is a Library System Programming Project. It involves creating a database ho
 3. Check if the postgres server is up and running in the background
 4. Change the following lines for the correct working of the app
 
-app.py, line 13, 158 - change the password 
+app.py, line 13 and 158 - change the password 
 ```
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:[your password]@localhost:5432/library_db'
 
