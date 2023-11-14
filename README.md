@@ -19,9 +19,7 @@ db_params = {
     }
 ```
 
-app.py, line 279, modify the comments
-
-to create a db
+app.py, line 279 - comments out 'app.run(debug=True)'
 ```
 if __name__ == '__main__':
     # app.run(debug=True)
@@ -32,7 +30,13 @@ if __name__ == '__main__':
         generate_sample_fines()
 ```
 
-to run the app
+5. run the following command, this will generate a database called "library_db" and populate the dataabse with the sample data given by the prof
+```
+python app.py
+```
+
+6. Change the following lines to run the app
+app.py, line 279 - comments out everything but 'app.run(debug=True)'
 ```
 if __name__ == '__main__':
     app.run(debug=True)
@@ -42,6 +46,8 @@ if __name__ == '__main__':
     #     insert_records()
     #     generate_sample_fines()
 ```
+
+7. Run the same command as step 5
 
 # Note
 This base code(as of 11/14) is structured in the way so the app covers only bare minimum requirements given in the instruction, and no design considerations has been given. As the issues get fixed, any changes to the structure of the code sould be made if necessary.
