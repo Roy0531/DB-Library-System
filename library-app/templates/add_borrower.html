@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% for message in get_flashed_messages() %}
+    <div class="alert alert-primary alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endfor %}
+
+<h3>Register a New User</h3>
+<br>
+<form action="" method="POST">
+    {{ form.hidden_tag() }}
+
+    {{ form.ssn.label }}
+    {{ form.ssn(class="form-control", placeholder="123-45-6789") }}
+    <br>
+    {{ form.bname.label }}
+    {{ form.bname(class="form-control", placeholder="Your name") }}
+    <br>
+    {{ form.address.label }}
+    {{ form.address(class="form-control", placeholder="Address") }}
+    <br>
+    {{ form.phone.label }}
+    {{ form.phone(class="form-control", placeholder="(123) 456-6789") }}
+    <br>
+    {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

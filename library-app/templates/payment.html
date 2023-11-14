@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>Payment</h3>
+<br>
+<form action="#" method="POST">
+    {{ form.hidden_tag() }} 
+    <h6>Fine {{ form.amount.label }}:  <strong>{{ fine.fine_amt }}</strong></h6>
+    <p>*Payment must be made in full, partial payment not allowed</p>
+    <p id="invalid-payment-amount"></p>
+    {{ form.amount(class="form-control") }}
+    <br>
+    {{ form.submit(class="btn btn-primary") }}
+</form>
+{% endblock %}

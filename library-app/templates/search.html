@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>Search Results of "<strong>{{ searched }}"</strong></h3>
+{% if results %}
+<ul>
+    {% for book, author in results %}
+        <div class="book-card">
+            <li>
+                <strong>Title:</strong> <span id="book-title">{{ book.title }}</span><br>
+                <strong>ISBN:</strong>  <span id="book-isbn">{{ book.isbn }}</span><br>
+                <strong>Author:</strong>  <span id="book-name">{{ author.name }}</span>
+            </li>
+            <div class="form-check">
+                <input class="form-check-input borrow-check-input" type="checkbox" value="" id="defaultCheck1">
+                <label class="form-check-label" for="defaultCheck1">
+                    Borrow
+                </label>
+            </div>
+        </div>
+    {% endfor %}
+</ul>
+<div id="sticky-container">
+    <div class="sticky">
+        <a href="{{ url_for('checkout') }}" class="btn btn-primary">Borrow</a>
+    </div>
+</div>
+{% else %}
+    <p>No results found.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,132 @@
+body {
+    overflow-y: scroll;
+}
+.container  {
+    margin-bottom: 20px;
+}
+
+h3 {
+    color: #333; 
+    border-bottom: 2px solid #333; 
+    padding-bottom: 10px; 
+}
+
+h5 {
+    color: #555; 
+    margin-top: 20px; 
+}
+
+p {
+    color: #777; 
+    margin-bottom: 20px; 
+}
+
+.navbar-nav .nav-link:hover {
+    text-decoration: underline;
+}
+
+.form-control {
+    width: 300px;
+}
+
+.card-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    gap: 10px; 
+}
+
+.card {
+    width: 15rem;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* search result */
+.book-card, .checkin-card {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.book-card li , .checkin-card li{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.book-card strong,  .checkin-card strong{
+    font-weight: bold;
+}
+
+.form-check {
+    margin-top: 10px;
+}
+
+.form-check-input {
+    margin-right: 5px;
+}
+
+#sticky-container {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #f1f1f1;
+    padding: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+}
+
+/* Optional: Add a transition for a smoother effect */
+#sticky-container.sticky {
+    transition: all 0.3s ease-in-out;
+}
+
+.sticky {
+    padding: 5px;
+    text-align: right; /* Align content to the right */
+}
+
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Hiding scrollbar for Chrome, Safari and Opera */
+#content::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hiding scrollbar for IE, Edge and Firefox */
+#content {
+  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.checkin-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0 auto; /* Center the checkin-card horizontally */
+    padding: 10px; /* Add some padding for spacing */
+}
+
+.checkin-card li {
+    list-style: none;
+    margin: 0;
+}
+
+.checkin-button {
+    margin-left: auto;
+}
