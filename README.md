@@ -42,3 +42,6 @@ if __name__ == '__main__':
     #     insert_records()
     #     generate_sample_fines()
 ```
+
+# Note
+This base code(as of 11/14) is structured in the way so the app covers only bare minimum requirements given in the instruction, and no design considerations has been given. As the issues get fixed, any changes to the structure of the code sould be made if necessary.
