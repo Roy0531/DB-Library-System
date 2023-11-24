@@ -18,9 +18,8 @@ radios.forEach(function(radio) {
 });
 
 // searhc result 
-const checkboxes = document.querySelectorAll('.borrow-check-input');
+const checkboxes = document.querySelectorAll('.checked-book');
 const selectedCards = [];
-const borrowButton = document.querySelector('#borow-button')
 
 checkboxes.forEach(checkbox => {
     checkbox.addEventListener('change', function () {
@@ -40,7 +39,7 @@ checkboxes.forEach(checkbox => {
             }
 
             // Check if three checkboxes are checked, then disable others
-            const checkedCheckboxes = document.querySelectorAll('.borrow-check-input:checked');
+            const checkedCheckboxes = document.querySelectorAll('.checked-book:checked');
             if (checkedCheckboxes.length >= 3) {
                 checkboxes.forEach(cb => {
                     if (!cb.checked) {

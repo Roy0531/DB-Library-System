@@ -16,21 +16,27 @@
                         <strong>ISBN:</strong> <span id="checkin-isbn">{{ result.Book.isbn }}</span><br>
                         <strong>Brrower:</strong>  <span id="checkin-name">{{ result.Borrower.bname }}</span><br>
                     </li>
-                    <div class="checkin-button">
-                        <a href="{{ url_for('summary', isbn=result.Book.isbn ) }}" type="button" class="btn btn btn-primary">Check In</a>
-                    </div>
+                    {% if result.BookLoan.date_in == None %}
+                        <div class="checkin-button">
+                            <a href="{{ url_for('summary_in', id=result.BookLoan.loan_id ) }}" type="button" class="btn btn btn-primary">Check In</a>
+                        </div>
+                    {% else %}
+                        <div class="checkin-button">
+                            <a type="button" class="btn" style="cursor: default; background-color: #dddddd; color: rgb(105, 105, 105); pointer-events: none;">This book has been checked in</a>
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </ul>
     {% else %}
         <p>No results found for "{{ searched }}"</p>
     {% endif %}
-    <a href="{{ url_for('checkin') }}" class="btn btn-primary">Go Back</a>
+    <a href="{{ url_for('checkin') }}" class="btn btn-primary">Go Back to Search</a>
 {% else %}
     <form method="POST">
         {{ form.hidden_tag() }}
         <h6>{{ form.searched.label }}</h6>
-        {{ form.searched(class="form-control", placeholder="ISBN / Borrower Name / Card No.") }}
+        {{ form.searched(class="form-control", placeholder="ISBN / Borrower Name / Card ID") }}
         <br>
         {{ form.submit(class="btn btn-primary") }}
     </form>

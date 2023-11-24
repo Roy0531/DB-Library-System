@@ -2,4 +2,26 @@
 
 {% block content %}
 <h3>Check out</h3>
+<h5>Books you are borrowing</h5>
+<div class="book-container">
+    {% for book in book_data_list %}
+        <div class="book-entry">
+            <div class="book-info">
+                <h6><strong>ISBN:</strong> {{ book.isbn }}</h6>
+                <h6><strong>Title:</strong> {{ book.title }}</h6>
+                <h6><strong>Author:</strong> {{ book.author }}</h6>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+<form action="" method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.card_id.label }}
+    <br>
+    {{ form.card_id(class="form-control") }}
+    <br>
+    {{ form.submit(class="btn btn-primary") }}
+</form>
+
 {% endblock %}

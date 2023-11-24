@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h3>Search Results of "<strong>{{ searched }}"</strong></h3>
+
+{% if form.books.choices|length > 0 %}
+    <h5 style="color: red;">You can borrow up to 3 books including your loans</h5>
+    <br>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        {% for subfield in form.books %}
+            <div class="book-card">
+                {% set isbn, title, name = subfield.data.split('_') %}
+                <strong>Title:</strong> <span id="book-title">{{ isbn }}</span><br>
+                <strong>ISBN:</strong>  <span id="book-isbn">{{ title }}</span><br>
+                <strong>Author:</strong>  <span id="book-name">{{ name }}</span>
+                <div>
+                    {{ subfield(class="checked-book") }}
+                    <label class="">Borrow</label>
+                </div>
+            </div>
+        {% endfor %}
+        {% for result in query_unaval %}
+            <div class="book-card">
+                <strong>Title:</strong> <span id="book-title">{{ result[0].isbn }}</span><br>
+                <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].title }}</span><br>
+                <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
+                <p style="color: red;"><strong>This book is currently on loan</strong></p>
+            </div>
+        {% endfor %}
+        {{ form.submit(class="btn btn-primary") }}
+    </form>
+    <br>
+    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
+{% elif  form.books.choices|length == 0 and query_unaval|length > 0%}
+    {% for result in query_unaval %}
+        <div class="book-card">
+            <strong>Title:</strong> <span id="book-title">{{ result[0].isbn }}</span><br>
+            <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].title }}</span><br>
+            <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
+            <p style="color: red;"><strong>This book is currently on loan</strong></p>
+        </div>
+    {% endfor %}
+    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
+{% else %}
+    <p>No results found.</p>
+    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
+{% endif %}
+{% endblock %}

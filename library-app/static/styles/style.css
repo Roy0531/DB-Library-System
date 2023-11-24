@@ -130,3 +130,24 @@ input::-webkit-inner-spin-button {
 .checkin-button {
     margin-left: auto;
 }
+
+.book-list {
+    max-width: 600px; /* Adjust the width as needed */
+    margin: 20px auto; /* Center the container with some margin */
+}
+
+/* Style for each individual book entry */
+.book-entry {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #fff;
+}
+
+/* Style for the ISBN, Title, and Author */
+.book-info h6 {
+    margin: 5px 0;
+    font-weight: normal;
+    color: #333;
+}

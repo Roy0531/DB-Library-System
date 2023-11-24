@@ -1,40 +1,144 @@
-from sqlalchemy import or_, cast, String
-from flask import Flask, render_template, flash
+from sqlalchemy import or_, cast, String, not_
+from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+import re
+from datetime import datetime, timedelta, date
 import csv
 import psycopg2
 import random
-from webForms import BorrowerForm, PaymentForm, SearchForm
-
+from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm
 
 app = Flask(__name__)
 # change the password to yours
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:[your password]@localhost:5432/library_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Ryou053101Ori@localhost:5432/library_db'
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
-
 
 @app.route('/')
 def index():
     return render_template("index.html")
 
+# Handle registering new users
 @app.route('/newborrower', methods=['GET', 'POST'])
 def add_borrower():
     form = BorrowerForm()
     if form.validate_on_submit():
-        borrower = Borrower(ssn=form.ssn.data, bname=form.bname.data, address=form.address.data, phone=form.phone.data)
-        form.ssn.data = ''
-        form.bname.data = ''
-        form.address.data = ''
-        form.phone.data = ''
-
-        db.session.add(borrower)
-        db.session.commit()
-        flash("User registered successfully")
-        
+        ssn_pattern = re.compile(r'^\d{3}-\d{2}-\d{4}$')
+        phone_pattern = re.compile(r'^\(\d{3}\) \d{3}-\d{4}$')
+        phone=form.phone.data
+        ssn=form.ssn.data
+        # validate ssn and phone inputs
+        if not ssn_pattern.match(ssn):
+            flash("Invalid SSN Ipnut")
+        elif not phone_pattern.match(phone):
+            flash("Invalid Phone Ipnut")
+        else:
+            # check if the same ssn already exists in the database
+            borrower = db.session.query(Borrower).filter(Borrower.ssn == ssn).first()
+            if borrower:
+                flash("This borrower already registered")
+            else:
+                borrower = Borrower(ssn=form.ssn.data, bname=form.bname.data, address=form.address.data, phone=form.phone.data)
+                # clear the input form
+                form.ssn.data = ''
+                form.bname.data = ''
+                form.address.data = ''
+                form.phone.data = ''
+                db.session.add(borrower)
+                db.session.commit()
+                flash("User Registered Successfully")
     return render_template("add_borrower.html", form = form)
+
+
+
+
+
+
+@app.route('/search', methods=['GET', 'POST'])
+def search():
+    form = SearchForm()
+    searched = ""
+    if form.validate_on_submit():
+        searched = form.searched.data
+        return redirect(url_for('results', searched=searched))
+    return render_template("search.html", form=form)
+
+@app.route('/results/<searched>', methods=['GET', 'POST'])
+def results(searched):
+    form = BookForm()
+    base_query = (
+        db.session.query(Book, Authors)
+        .join(BookAuthors, Book.isbn == BookAuthors.isbn)
+        .join(Authors, Authors.author_id == BookAuthors.author_id)
+        .filter(
+            or_(
+                Book.isbn.ilike(f"%{searched}%"),
+                Book.title.ilike(f"%{searched}%"),
+                Authors.name.ilike(f"%{searched}%")
+            )
+        )
+        
+    )
+
+    query_aval = base_query.filter(
+            not_(
+                db.session.query(BookLoan.isbn)
+                .filter(BookLoan.isbn == Book.isbn)
+                .exists()
+            )
+        ).distinct().all()
+    
+    query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct().all()
+    
+    form.books.choices = [(f"{book.isbn}_{book.title}_{author.name}", "") for book, author in query_aval]
+    if form.validate_on_submit():
+        session['selected_books'] = form.books.data
+        return redirect(url_for('checkout'))
+    else:
+        print("Validation Failed")
+    return render_template("results.html", searched=searched, form=form, query_unaval=query_unaval)
+
+@app.route('/checkout', methods=['Get','POST'])
+def checkout():
+    selected_books = session.get('selected_books', [])
+    book_data_list = []
+    for book in selected_books:
+        isbn, title, names = book.split('_')
+        book_data = {
+            'isbn': isbn,
+            'title': title,
+            'author': names
+        }
+        book_data_list.append(book_data)
+        
+    checkout_count = len(book_data_list)
+    form = CheckOutForm()
+    loan_count = 0
+    over_limit = False
+    due_date = None
+    if form.validate_on_submit():
+        card_id = form.card_id.data
+        loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).count()
+        if checkout_count + loan_count <= 3:
+            for book in book_data_list:
+                date_out = date.today()
+                due_date = date_out + timedelta(weeks=2)
+                loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date)
+                db.session.add(loan)
+            db.session.commit()
+        else:
+            over_limit = True
+        return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
+    return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
+
+
+
+
+
+
+
+
 
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
@@ -53,66 +157,66 @@ def checkin():
                     cast(Borrower.card_id, String).ilike(f"%{searched}%"),
                     Borrower.bname.ilike(f"%{searched}%")
                 )
-            )
+            ).distinct()
         )
-
+        
         results = query.all()
     return render_template("checkin.html", form=form, searched=searched, results=results)
 
-@app.route('/checkin', methods=['GET', 'POST'])
-def summary():
-    return render_template("summary.html")
-
-@app.route('/checkout')
-def checkout():
-    return render_template("checkout.html")
+@app.route('/summary_in/<id>')
+def summary_in(id):
+    # this id is loan_id
+    loan_to_update = db.session.query(BookLoan).filter(BookLoan.loan_id == id).first()
+    if loan_to_update:
+        current_date = date.today()
+        loan_to_update.date_in = current_date
+        db.session.commit()
+        overdue=False
+        date_difference = loan_to_update.date_in - loan_to_update.date_out
+        if date_difference > timedelta(days=14):
+            overdue=True
+        remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.loan_id != loan_to_update.loan_id).all()
+    return render_template("summary_in.html", loan_to_update=loan_to_update, remaining_loans=remaining_loans, overdue=overdue)
 
 @app.route('/fines')
 def fines():
-    fines_unpaid = Fines.query.filter(Fines.paid == False).all()
-    fines_paid = Fines.query.filter(Fines.paid == True).all()
-    
+    fines_unpaid = db.session.query(Fines).filter(Fines.paid == False).all()
+    fines_paid = db.session.query(Fines).filter(Fines.paid == True).all()
     return render_template("fines.html", fines_unpaid=fines_unpaid, fines_paid=fines_paid)
 
-@app.route('/payment/<int:id>')
+@app.route('/payment/<id>', methods=['GET', 'POST'])
 def payment(id):
     fine = Fines.query.get_or_404(id)
-    amount = None
+    entered_amount = 0.0
     form = PaymentForm()
     if form.validate_on_submit():
-        pass
-    return render_template("payment.html", fine=fine, amount=amount, form=form)
+        entered_amount = form.amount.data
+        if entered_amount != float(fine.fine_amt):
+            flash('Amount does not match the fine amount.', 'error')
+        else:
+            fine.paid = True
+            db.session.commit()
+            session['loan_id'] = fine.loan_id
+            return redirect(url_for('receipt'))
+    return render_template("payment.html", fine=fine, form=form)
 
-@app.context_processor
-def base():
-    form = SearchForm()
-    return dict(form=form)
+@app.route('/receipt', methods=['GET'])
+def receipt():
+    loan_id = session.get('loan_id', [])
+    
+    return render_template("receipt.html", loan_id=loan_id)
 
-@app.route('/search', methods=['POST'])
-def search():
-    form = SearchForm()
-    if form.validate_on_submit():
-        searched = form.searched.data
-        query = (
-            db.session.query(Book, Authors)
-            .join(BookAuthors, Book.isbn == BookAuthors.isbn)
-            .join(Authors, Authors.author_id == BookAuthors.author_id)
-            .filter(
-                or_(
-                    Book.isbn.ilike(f"%{searched}%"),
-                    Book.title.ilike(f"%{searched}%"),
-                    Authors.name.ilike(f"%{searched}%")
-                )
-            )
-        )
 
-        results = query.all()
-    return render_template("search.html", form=form, searched=searched, results=results)
 
-# models
+
+
+
+
+
+# Models
 class Book(db.Model):
     __tablename__ = 'book'
-    isbn = db.Column(db.String(13), primary_key=True, nullable=False)
+    isbn = db.Column(db.String(10), primary_key=True, nullable=False)
     title = db.Column(db.String(255), nullable=False)
 
 class Authors(db.Model):
@@ -153,13 +257,13 @@ class Fines(db.Model):
     paid = db.Column(db.Boolean, nullable=False)
     db.ForeignKeyConstraint(['loan_id'], ['book_loans.loan_id'])
 
-
+# Create a database named 'library_db'
 def create_database():
     db_params = {
     'host': 'localhost',
     'database': 'postgres',
     'user': 'postgres',
-    'password': 'your password',
+    'password': 'Ryou053101Ori',
     }
     # Establish a connection to the default database
     connection = psycopg2.connect(**db_params)
@@ -173,9 +277,10 @@ def create_database():
     connection.commit()
     connection.set_isolation_level(1)
     cursor.close()
+    # Close the connection
     connection.close()
 
-# read in books.csv
+# Read in data from books.csv and return an array of the books' data
 def read_tsv_data():
     # total No. of record: 25000
     # book w/ Author: 24972
@@ -188,7 +293,7 @@ def read_tsv_data():
             data.append(line)
     return data
 
-# read in borrowers.csv
+# Read in data from borrowers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
     with open('borrowers.csv', mode='r', newline='') as file:
@@ -198,40 +303,41 @@ def read_csv_data():
             data.append(line)
     return data
 
-# populate the book, authors, and book_authors tables
+# Populate the book, authors, and book_authors tables
 def insert_records():
     try:
-        # obtain the data from the files
+        # read in data from the files
         bookData = read_tsv_data()
         borrowerData = read_csv_data()
-
+        # count the number of records inserted
         count = 0
+        # each record is an array: [isbn10, isbn13, title, author, cover, publisher, pages]
         for record in bookData:
             # populate the book table
-            isbn13 = record[1]
+            isbn10 = record[0]
             title = record[2]
-            book = Book(isbn=isbn13, title=title)
+            book = Book(isbn=isbn10, title=title)
             db.session.add(book)
-            
+            # populate the authors table
+            # books w/o aithors doesn't have record[3]
             if record[3]:
-                # populate the authors table
                 author_name = record[3]
                 author = Authors(name=author_name)
                 db.session.add(author)
-
                 # populate the book_authors table
+                # query the author data that has just been inserted in the above lines
                 last_author = Authors.query.order_by(Authors.author_id.desc()).first()
                 if last_author:
                     author_id = last_author.author_id
-                    bookAuthor = BookAuthors(author_id=author_id, isbn=isbn13)
+                    bookAuthor = BookAuthors(author_id=author_id, isbn=isbn10)
                     db.session.add(bookAuthor)
-                    
             count += 1
             # print out the progress message
             if count % 1000 == 0:
                 print(f"{count} / 25000 records inserted")
 
         # populate the borrower table
+        # each record is an array: [id, ssn, first_name, last_name, email, address, city, state, phone]
         for record in borrowerData:
             ssn = record[1]
             bname = record[2] + ' ' + record[3]
@@ -239,43 +345,48 @@ def insert_records():
             phone = record[8]
             borrower = Borrower(ssn=ssn, bname=bname, address=address, phone=phone)
             db.session.add(borrower)
-        
+        # commit the changes to the database
         db.session.commit()
         print("Book, Authors, and Book_Authors tables populated successfully")
     except Exception as e:
         print(f"An error occurred: {e}")
 
-# generate sample data for book_loan and fines tables and populate them with the data
+# Generate sample data for book_loan and fines tables and populate them with the sample data
 def generate_sample_fines():
     try:
-        # query 10 instances of book and borrower data from the db
-        book_records = Book.query.limit(10).all()
-        borrower_records = Borrower.query.limit(10).all()
+        # query the first 10 instances of book and borrower data from the database
+        book_records = db.session.query(Book).limit(10).all()
+        borrower_records = db.session.query(Borrower).limit(10).all()
         
         for count in range(10):
             # populate the book_loan table
+            # generate a sample date value
             date_out = datetime(2023, 1, count+1).date()
+            # set the due data to date_out + 14 days 
             due_date = date_out + timedelta(weeks=2)
             loan = BookLoan(isbn=book_records[count].isbn, card_id=borrower_records[count].card_id, date_out=date_out, due_date=due_date)
             db.session.add(loan)
             
             # populate the fines table
-            last_loan = BookLoan.query.order_by(BookLoan.loan_id.desc()).first()
+            # query the book loan data that has just been inserted in the above lines
+            last_loan = db.session.query(BookLoan).order_by(BookLoan.loan_id.desc()).first()
             if last_loan:
                 loan_id = last_loan.loan_id
+                # randomly decide if this loan is paid or not
                 paid = random.choice([True, False])
+                # generate a random fine amount with 2 decimal places
                 fine_amt = round(random.uniform(1, 20), 2)
                 bookAuthor = Fines(loan_id=loan_id, fine_amt=fine_amt, paid=paid)
                 db.session.add(bookAuthor)
-            
+        # commit the changes to the database 
         db.session.commit()
         print("Sample data inserted into Book_Loans and Fines successfully")
     except Exception as e:
         print(f"An error occurred: {e}")
 
 
-# comment out 'app.run(debug=True)' if you want to create a database
-# comment out everything but 'app.run(debug=True)' if you want to run the app
+# comment out 'app.run(debug=True)' to create a database
+# comment out everything but 'app.run(debug=True)' to run the app
 if __name__ == '__main__':
     app.run(debug=True)
     # create_database()
