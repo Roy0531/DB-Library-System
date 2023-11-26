@@ -27,46 +27,68 @@ def index():
 # Handle registering new users
 @app.route('/newborrower', methods=['GET', 'POST'])
 def add_borrower():
+    # create a form object that takes care of user info submission
     form = BorrowerForm()
+    # validate if the form is at least filled in with some user input
     if form.validate_on_submit():
+        # regular expression for validating ssn input
         ssn_pattern = re.compile(r'^\d{3}-\d{2}-\d{4}$')
+        # regular expression for validating phone number input
         phone_pattern = re.compile(r'^\(\d{3}\) \d{3}-\d{4}$')
+        # get the ssn and phone number input
         phone=form.phone.data
         ssn=form.ssn.data
         # validate ssn and phone inputs
         if not ssn_pattern.match(ssn):
+            # indicate the user that the ssn input is invalid
             flash("Invalid SSN Ipnut")
         elif not phone_pattern.match(phone):
+            # indicate the user that the ssn input is invalid
             flash("Invalid Phone Ipnut")
         else:
             # check if the same ssn already exists in the database
             borrower = db.session.query(Borrower).filter(Borrower.ssn == ssn).first()
             if borrower:
+                # indicate the user that the ssn already exists in the database
                 flash("This borrower already registered")
             else:
+                # if all the inputs are valid, create a new borrower instance
                 borrower = Borrower(ssn=form.ssn.data, bname=form.bname.data, address=form.address.data, phone=form.phone.data)
                 # clear the input form
                 form.ssn.data = ''
                 form.bname.data = ''
                 form.address.data = ''
                 form.phone.data = ''
+                # add the borrower instance to the database
                 db.session.add(borrower)
+                # commit the change to the database
                 db.session.commit()
+                # indicate the user that the new borrower successfully registered
                 flash("User Registered Successfully")
+    # display the add_borrower page
     return render_template("add_borrower.html", form = form)
 
+# Handle searching for books
 @app.route('/search', methods=['GET', 'POST'])
 def search():
+    # create a form object that takes are of search terms submission
     form = SearchForm()
     searched = ""
+    # validate if the form is at least filled in with some saerch terms
     if form.validate_on_submit():
+        # get the search terms this user typed in
         searched = form.searched.data
+        # redirect user to results page
         return redirect(url_for('results', searched=searched))
+    # display the search page
     return render_template("search.html", form=form)
 
+# Handle displaying search results
 @app.route('/results/<searched>', methods=['GET', 'POST'])
 def results(searched):
+    # create a form object that takes care of books' data submittion
     form = BookForm()
+    # base query used to query for books currently avairable and unavairable
     base_query = (
         db.session.query(Book, Authors)
         .join(BookAuthors, Book.isbn == BookAuthors.isbn)
@@ -80,7 +102,7 @@ def results(searched):
         )
         
     )
-
+    # query for books currently available
     query_aval = base_query.filter(
             not_(
                 db.session.query(BookLoan.isbn)
@@ -88,21 +110,27 @@ def results(searched):
                 .exists()
             )
         ).distinct().all()
-    
+    # query for books currently unavailable
     query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct().all()
     
     form.books.choices = [(f"{book.isbn}_{book.title}_{author.name}", "") for book, author in query_aval]
+
     if form.validate_on_submit():
+        # pass the selected books data to checkout() function below
         session['selected_books'] = form.books.data
         return redirect(url_for('checkout'))
     else:
         print("Validation Failed")
+    # display the results page
     return render_template("results.html", searched=searched, form=form, query_unaval=query_unaval)
 
+# Handle checking out books
 @app.route('/checkout', methods=['Get','POST'])
 def checkout():
+    # get the selected books data passed from results() function above
     selected_books = session.get('selected_books', [])
     book_data_list = []
+    # create a list of dictionary of books to chekcout 
     for book in selected_books:
         isbn, title, names = book.split('_')
         book_data = {
@@ -111,34 +139,53 @@ def checkout():
             'author': names
         }
         book_data_list.append(book_data)
-        
+    # get the number of books this user is borrowing
     checkout_count = len(book_data_list)
+    # create a form object that takes care of card id submittion
     form = CheckOutForm()
+    # used in the input validation below
     loan_count = 0
     over_limit = False
     due_date = None
+    # validate card id input
     if form.validate_on_submit():
+        # get the card id value this user typed in
         card_id = form.card_id.data
+        # get the number of book loan this user already has
         loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).count()
+        # check if the total number of book loan for this user does not exceed 3
         if checkout_count + loan_count <= 3:
+            # create book loan instances for each book this user is borrowing
             for book in book_data_list:
+                # get the date of today
                 date_out = date.today()
+                # set the due date to 2 weeks after today's date
                 due_date = date_out + timedelta(weeks=2)
                 loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date)
+                # add this new loan instance to the database
                 db.session.add(loan)
+            # commit the changes to the database
             db.session.commit()
         else:
+            # the total number of loan this user is going to have exceed 3
             over_limit = True
+        # display the summary page
         return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
+    # display the ckeck out page
     return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
 
+# Handle chcking in books
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
+    # create a form object that takes are of search terms submission 
     form = SearchForm()
     searched = ""
     results = []
+    # validate if the form is at least filled in with some saerch terms
     if form.validate_on_submit():
+        # get the search terms this user typed in
         searched = form.searched.data
+        # create a query object that fetch loan data based on the searhc term gievn
         query = (
             db.session.query(BookLoan, Book, Borrower)
             .join(Book, Book.isbn == BookLoan.isbn)
@@ -151,15 +198,19 @@ def checkin():
                 )
             ).distinct()
         )
-        
+        # query the data
         results = query.all()
+    # display the checkin page
     return render_template("checkin.html", form=form, searched=searched, results=results)
 
+# Handle displaying 
 @app.route('/summary_in/<id>')
 def summary_in(id):
-    # this id is loan_id
+    # this id is loan_id of the books that are going to be checked in
+    # query for the book to be checked in
     loan_to_update = db.session.query(BookLoan).filter(BookLoan.loan_id == id).first()
     if loan_to_update:
+        # get the date of today
         current_date = date.today()
         loan_to_update.date_in = current_date
         db.session.commit()
@@ -167,9 +218,12 @@ def summary_in(id):
         date_difference = loan_to_update.date_in - loan_to_update.date_out
         if date_difference > timedelta(days=14):
             overdue=True
+        # query for the remaining loans of this user
         remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.loan_id != loan_to_update.loan_id).all()
+    # display the summary page
     return render_template("summary_in.html", loan_to_update=loan_to_update, remaining_loans=remaining_loans, overdue=overdue)
 
+# Handle displaying the fines
 @app.route('/fines')
 def fines():
     # query for book loans that have been returned and  that their date_in is later than the due_date
@@ -191,7 +245,7 @@ def fines():
             # Create a new entry if it doesn't exist
             new_fines_entry = Fines(loan_id=loan.loan_id, fine_amt=fine_amount, paid=False)
             db.session.add(new_fines_entry)
-
+    # get the date of today
     today = date.today()
     # Update estimated fines for overdue books that are still out
     overdue_loans_still_out = db.session.query(BookLoan).filter(
@@ -213,8 +267,10 @@ def fines():
             db.session.add(new_fines_entry)
     # Commit the changes to the database
     db.session.commit()
-
+    
+    # query for all the unpaid loans
     fines_unpaid = db.session.query(Fines).filter(Fines.paid == False).all()
+    # create a list of lan id of loans queried above
     unpaid_loan_ids = [fine.loan_id for fine in fines_unpaid]
     # query for unpaid loans that has date_in value
     unpaid_fines_in = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is not None).all()
@@ -222,29 +278,41 @@ def fines():
     unpaid_fines_out = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is None).all()
     # query for paid loans
     paid_fines = db.session.query(Fines).filter(Fines.paid == True).all()
-    
+    # display the fine page
     return render_template("fines.html", unpaid_fines_in=unpaid_fines_in, unpaid_fines_out=unpaid_fines_out, paid_fines=paid_fines)
 
+# Handle the fine payment
 @app.route('/payment/<id>', methods=['GET', 'POST'])
 def payment(id):
-    fine = Fines.query.get_or_404(id)
+    fine = db.session.query(Fines).filter(Fines.loan_id == id).first()
     entered_amount = 0.0
+    # create a form object that takes care of payment submission
     form = PaymentForm()
+    # validate if the form is at least filled in with some payment amount
     if form.validate_on_submit():
+        # get the payment amount this user typed in
         entered_amount = form.amount.data
+        # validate if this payment is full
         if entered_amount != float(fine.fine_amt):
+            # indicate this user that the payment amount has to be exact
             flash('Amount does not match the fine amount.', 'error')
         else:
+            # update this fine instance to be paid
             fine.paid = True
+            # commit the change to the database
             db.session.commit()
+            # pass the loan id of this fine to recepit() below
             session['loan_id'] = fine.loan_id
+            # direct user to recipt page
             return redirect(url_for('receipt'))
+    # display payment page
     return render_template("payment.html", fine=fine, form=form)
 
 @app.route('/receipt', methods=['GET'])
 def receipt():
+    # get the lona id of the fine that have jsut been paid above
     loan_id = session.get('loan_id', [])
-    
+    # display receipt page
     return render_template("receipt.html", loan_id=loan_id)
 
 # Models
