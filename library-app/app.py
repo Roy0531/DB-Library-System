@@ -1,6 +1,8 @@
 from sqlalchemy import or_, cast, String, not_
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+import os
 import re
 from datetime import datetime, timedelta, date
 import csv
@@ -8,9 +10,12 @@ import psycopg2
 import random
 from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm
 
+load_dotenv()
+db_pass = os.environ.get('DATABASE_PASSWORD')
+
 app = Flask(__name__)
 # change the password to yours
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:your password@localhost:5432/library_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localhost:5432/library_db'
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
@@ -292,7 +297,7 @@ def create_database():
     'host': 'localhost',
     'database': 'postgres',
     'user': 'postgres',
-    'password': 'your password',
+    'password': db_pass,
     }
     # Establish a connection to the default database
     connection = psycopg2.connect(**db_params)
