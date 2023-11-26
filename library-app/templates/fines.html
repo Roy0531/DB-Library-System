@@ -13,13 +13,27 @@
     <h5>Unpaid Fines</h5>
     <br>
     <div class="card-container">
-        {% for fine_unpaid in fines_unpaid %}
+        {% for unpaid_fine_in in unpaid_fines_in %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <p  >Loan ID: <strong>{{ fine_unpaid.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>{{ fine_unpaid.fine_amt }}</strong></p>
-                        <a href="{{ url_for('payment', id=fine_unpaid.loan_id) }}" class="btn btn-primary">Pay this fine</a>
+                        <p  >Loan ID: <strong>{{ unpaid_fine_in.loan_id }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>{{ unpaid_fine_in.fine_amt }}</strong></p>
+                        <a href="{{ url_for('payment', id=unpaid_fine_in.loan_id) }}" class="btn btn-primary">Pay this fine</a>
+                    </div>
+                </div>
+            </div>
+
+        {% endfor %}
+    </div>
+    <div class="card-container">
+        {% for unpaid_fine_out in unpaid_fines_out %}
+            <div class="card" style="width: 15rem;">
+                <div class="card-body">
+                    <div style="display: flex; flex-direction: column; align-items: center;">
+                        <p>Loan ID: <strong>{{ unpaid_fine_out.loan_id }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>{{ unpaid_fine_out.fine_amt }}</strong></p>
+                        <p class="card-text">This book is still out</p>
                     </div>
                 </div>
             </div>
@@ -32,12 +46,12 @@
     <h5>Paid Fines</h5>
     <br>
     <div class="card-container">
-        {% for fine_paid in fines_paid %}
+        {% for paid_fines in paid_fines %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <p>Loan ID: <strong>{{ fine_paid.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>{{ fine_paid.fine_amt }}</strong></p>
+                        <p>Loan ID: <strong>{{ paid_fines.loan_id }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>{{ paid_fines.fine_amt }}</strong></p>
                         <p class="card-text">Paid</p>
                     </div>
                 </div>

@@ -50,11 +50,6 @@ def add_borrower():
                 flash("User Registered Successfully")
     return render_template("add_borrower.html", form = form)
 
-
-
-
-
-
 @app.route('/search', methods=['GET', 'POST'])
 def search():
     form = SearchForm()
@@ -132,14 +127,6 @@ def checkout():
         return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
     return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
 
-
-
-
-
-
-
-
-
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
     form = SearchForm()
@@ -180,9 +167,58 @@ def summary_in(id):
 
 @app.route('/fines')
 def fines():
+    # query for book loans that have been returned and  that their date_in is later than the due_date
+    returned_overdue_loans = db.session.query(BookLoan).filter(
+        BookLoan.date_in is not None, BookLoan.due_date < BookLoan.date_in
+    ).all()
+    # Update fines for overdue books that have been returned
+    for loan in returned_overdue_loans:
+        # Calculate the number of days overdue
+        days_overdue = (loan.date_in - loan.due_date).days
+        # Calculate the fine amount based on the rate of $0.25/day
+        fine_amount = days_overdue * 0.25
+        # Update the fine_amt of the unpaid fines for the corresponding loan_id
+        fines_entry = db.session.query(Fines).filter(Fines.loan_id == loan.loan_id, paid=False).first()
+        if fines_entry:
+            # Update existing entry
+            fines_entry.fine_amt = fine_amount
+        else:
+            # Create a new entry if it doesn't exist
+            new_fines_entry = Fines(loan_id=loan.loan_id, fine_amt=fine_amount, paid=False)
+            db.session.add(new_fines_entry)
+
+    today = date.today()
+    # Update estimated fines for overdue books that are still out
+    overdue_loans_still_out = db.session.query(BookLoan).filter(
+        BookLoan.due_date < today, BookLoan.date_in is None
+    ).all()
+    for loan in overdue_loans_still_out:
+        # Calculate the number of days overdue
+        days_overdue = (today - loan.due_date).days
+        # Calculate the estimated fine amount based on the rate of $0.25/day
+        estimated_fine_amount = days_overdue * 0.25
+        # Update the fine_amt in the Fines table for the corresponding loan_id
+        fines_entry = db.session.query(Fines).filter(Fines.loan_id == loan.loan_id).first()
+        if fines_entry:
+            # Update existing entry
+            fines_entry.fine_amt = estimated_fine_amount
+        else:
+            # Create a new entry if it doesn't exist
+            new_fines_entry = Fines(loan_id=loan.loan_id, fine_amt=estimated_fine_amount, paid=False)
+            db.session.add(new_fines_entry)
+    # Commit the changes to the database
+    db.session.commit()
+
     fines_unpaid = db.session.query(Fines).filter(Fines.paid == False).all()
-    fines_paid = db.session.query(Fines).filter(Fines.paid == True).all()
-    return render_template("fines.html", fines_unpaid=fines_unpaid, fines_paid=fines_paid)
+    unpaid_loan_ids = [fine.loan_id for fine in fines_unpaid]
+    # query for unpaid loans that has date_in value
+    unpaid_fines_in = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is not None).all()
+    # query for unpaid loans that doesn't have date_in value
+    unpaid_fines_out = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is None).all()
+    # query for paid loans
+    paid_fines = db.session.query(Fines).filter(Fines.paid == True).all()
+    
+    return render_template("fines.html", unpaid_fines_in=unpaid_fines_in, unpaid_fines_out=unpaid_fines_out, paid_fines=paid_fines)
 
 @app.route('/payment/<id>', methods=['GET', 'POST'])
 def payment(id):
@@ -205,13 +241,6 @@ def receipt():
     loan_id = session.get('loan_id', [])
     
     return render_template("receipt.html", loan_id=loan_id)
-
-
-
-
-
-
-
 
 # Models
 class Book(db.Model):
