@@ -10,7 +10,7 @@ from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutFo
 
 app = Flask(__name__)
 # change the password to yours
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Ryou053101Ori@localhost:5432/library_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:your password@localhost:5432/library_db'
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
@@ -292,7 +292,7 @@ def create_database():
     'host': 'localhost',
     'database': 'postgres',
     'user': 'postgres',
-    'password': 'Ryou053101Ori',
+    'password': 'your password',
     }
     # Establish a connection to the default database
     connection = psycopg2.connect(**db_params)
