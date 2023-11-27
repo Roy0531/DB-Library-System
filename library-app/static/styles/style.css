@@ -151,3 +151,11 @@ input::-webkit-inner-spin-button {
     font-weight: normal;
     color: #333;
 }
+
+.main-menu-link {
+    color: #555;
+    text-decoration: none;
+}
+.main-menu-link:hover {
+    text-decoration: underline;
+}

@@ -6,19 +6,19 @@
 <div>
     <ul>
         <li>
-            <h5>Search Books</h5>
+            <h5><a class="main-menu-link" href="{{ url_for('search') }}">Search Books</a></h5>
             <p>Search any books by isbn, title, or author name, and check out books using the borrow option</p>
         </li>
         <li>
-            <h5>Register New User</h5>
+            <h5><a class="main-menu-link" href="{{ url_for('add_borrower') }}">Register New User</a></h5>
             <p>Fill in the form and register a new user</p>
         </li>
         <li>
-            <h5>Check in Books</h5>
+            <h5><a class="main-menu-link" href="{{ url_for('checkin') }}">Check in Books</a></h5>
             <p>Search for a book to check in by isbn, card id, or borrower name</p>
         </li>
         <li>
-            <h5>Manage Fines</h5>
+            <h5><a class="main-menu-link" href="{{ url_for('fines') }}">Manage Fines</a></h5>
             <p>View all the existing fines, and pay the fine of returned overdue books </p>
         </li>
     </ul>

@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_, func
+from sqlalchemy import or_, cast, String, not_, func, text
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -9,10 +9,11 @@ import csv
 import psycopg2
 import random
 from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm
+import sqlalchemy as db1
+from datetime import date
 
 load_dotenv()
 db_pass = os.environ.get('DATABASE_PASSWORD')
-
 
 app = Flask(__name__)
 # change the password to yours
@@ -20,6 +21,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localh
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
+engine = db1.create_engine(f"postgresql://postgres:{db_pass}@localhost:5432/library_db")
+
+conn = engine.connect()
 
 @app.route('/')
 def index():
@@ -75,7 +79,7 @@ def search():
     # create a form object that takes are of search terms submission
     form = SearchForm()
     searched = ""
-    # validate if the form is at least filled in with some saerch terms
+    # validate if the form is at least filled in with some search terms
     if form.validate_on_submit():
         # get the search terms this user typed in
         searched = form.searched.data
@@ -87,9 +91,9 @@ def search():
 # Handle displaying search results
 @app.route('/results/<searched>', methods=['GET', 'POST'])
 def results(searched):
-    # create a form object that takes care of books' data submittion
+    # create a form object that takes care of books' data submission
     form = BookForm()
-    # base query used to query for books currently avairable and unavairable
+    # base query used to query for books currently available and unavailable
     base_query = (
         db.session.query(Book, Authors)
         .join(BookAuthors, Book.isbn == BookAuthors.isbn)
@@ -131,7 +135,7 @@ def checkout():
     # get the selected books data passed from results() function above
     selected_books = session.get('selected_books', [])
     book_data_list = []
-    # create a list of dictionary of books to chekcout 
+    # create a list of dictionary of books to checkout
     for book in selected_books:
         isbn, title, names = book.split('_')
         book_data = {
@@ -142,7 +146,7 @@ def checkout():
         book_data_list.append(book_data)
     # get the number of books this user is borrowing
     checkout_count = len(book_data_list)
-    # create a form object that takes care of card id submittion
+    # create a form object that takes care of card id submission
     form = CheckOutForm()
     # used in the input validation below
     loan_count = 0
@@ -165,8 +169,20 @@ def checkout():
                 loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date, date_in=None)
                 # add this new loan instance to the database
                 db.session.add(loan)
-            # commit the changes to the database
+                query = text("""
+                SELECT loan_id
+                FROM book_loans
+                WHERE isbn = :isbn AND card_id = :card_id
+                """)
+                loan_id = conn.execute(query, {'isbn':book['isbn'], 'card_id':card_id}).fetchone()
+                query = text("""
+                INSERT INTO book_loans(loan_id, fine_amt)
+                VALUES (:loan_id, 0.00)
+                """)
+                conn.execute(query, {'loan_id': loan_id[0]})
             db.session.commit()
+            conn.commit()
+
         else:
             # the total number of loan this user is going to have exceed 3
             over_limit = True
@@ -175,7 +191,7 @@ def checkout():
     # display the check out page
     return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
 
-# Handle chcking in books
+# Handle checking in books
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
     # create a form object that takes are of search terms submission 
@@ -186,7 +202,7 @@ def checkin():
     if form.validate_on_submit():
         # get the search terms this user typed in
         searched = form.searched.data
-        # create a query object that fetch loan data based on the search term gievn
+        # create a query object that fetch loan data based on the search term given
         query = (
             db.session.query(BookLoan, Book, Borrower)
             .join(Book, Book.isbn == BookLoan.isbn)
@@ -298,32 +314,25 @@ def payment(id):
     # create a form object that takes care of payment submission
     form = PaymentForm()
     # validate if the form is at least filled in with some payment amount
-    if form.validate_on_submit():
-        # get the payment amount this user typed in
-        entered_amount = form.amount.data
-        # validate if this payment is full
-        if entered_amount != float(fine[0][1]):
-            # indicate this user that the payment amount has to be exact
-            flash('Amount does not match the fine amount.', 'error')
-        else:
-            fine_to_update = (
-                    db.session.query(Fines)
-                    .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
-                    .filter(Fines.paid == False)
-                    .filter(BookLoan.date_in != None)
-                    .filter(BookLoan.card_id == id)
-                ).all()
-            print(fine_to_update)
-            # update this fine instance to be paid
-            for fine_instance in fine_to_update:
-                fine_instance.paid = True
-            # commit the change to the database
-            db.session.commit()
-            loan_ids = [fine.loan_id for fine in fine_to_update]
-            # pass the loan id of this fine to receipt() below
-            session['loan_ids'] = loan_ids
-            # direct user to receipt page
-            return redirect(url_for('receipt'))
+    if form.is_submitted():
+        fine_to_update = (
+                db.session.query(Fines)
+                .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
+                .filter(Fines.paid == False)
+                .filter(BookLoan.date_in != None)
+                .filter(BookLoan.card_id == id)
+            ).all()
+        print(fine_to_update)
+        # update this fine instance to be paid
+        for fine_instance in fine_to_update:
+            fine_instance.paid = True
+        # commit the change to the database
+        db.session.commit()
+        loan_ids = [fine.loan_id for fine in fine_to_update]
+        # pass the loan id of this fine to receipt() below
+        session['loan_ids'] = loan_ids
+        # direct user to receipt page
+        return redirect(url_for('receipt'))
     # display payment page
     return render_template("payment.html", fine=fine, form=form)
 
@@ -333,6 +342,25 @@ def receipt():
     loan_ids = session.get('loan_ids', [])
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
+
+# will go through fines database and will update all the fines that haven't been paid
+def update_day_fines():
+    query = text("""
+    UPDATE FINES 
+    SET fine_amt = 
+    CASE 
+        WHEN (fines.paid = FALSE OR fines.paid is NULL) AND BOOK_LOANS.due_date < CURRENT_DATE AND BOOK_LOANS.date_in is NULL
+        THEN EXTRACT(EPOCH FROM AGE(CURRENT_DATE, BOOK_LOANS.due_date))/(24*3600)*0.25
+        ELSE fine_amt
+    END
+	FROM BOOK_LOANS
+	WHERE fines.loan_id = book_loans.loan_id;
+""")
+    conn.execute(query)
+    conn.commit()
+    # query = fines.select()
+    # result = conn.execute(query).fetchall()
+
 
 # Models
 class Book(db.Model):
@@ -375,7 +403,7 @@ class Fines(db.Model):
     __tablename__ = 'fines'
     loan_id = db.Column(db.Integer, primary_key=True, nullable=False)
     fine_amt = db.Column(db.Numeric(8, 2), nullable=False)
-    paid = db.Column(db.Boolean, nullable=False)
+    paid = db.Column(db.Boolean, nullable=True)
     db.ForeignKeyConstraint(['loan_id'], ['book_loans.loan_id'])
 
 # Create a database named 'library_db'
@@ -393,6 +421,7 @@ def create_database():
     cursor = connection.cursor()
     # Create a new database
     new_database_name = 'library_db'
+    cursor.execute(f"DROP DATABASE IF EXISTS {new_database_name};")
     cursor.execute(f"CREATE DATABASE {new_database_name};")
     print(f"Database '{new_database_name}' created successfully.")
     connection.commit()
@@ -407,7 +436,7 @@ def read_tsv_data():
     # book w/ Author: 24972
     # book w/o Author: 28
     data = []
-    with open('books.tsv', mode='r', newline='') as file:
+    with open('books.tsv', mode='r', newline='', encoding='utf8') as file:
         tsv_reader = csv.reader(file, delimiter='\t')
         next(tsv_reader, None)
         for line in tsv_reader:
@@ -417,7 +446,7 @@ def read_tsv_data():
 # Read in data from borrowers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
-    with open('borrowers.csv', mode='r', newline='') as file:
+    with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
         csv_reader = csv.reader(file)
         next(csv_reader, None)
         for line in csv_reader:
@@ -440,7 +469,7 @@ def insert_records():
             book = Book(isbn=isbn10, title=title)
             db.session.add(book)
             # populate the authors table
-            # books w/o aithors doesn't have record[3]
+            # books w/o authors doesn't have record[3]
             if record[3]:
                 author_name = record[3]
                 author = Authors(name=author_name)
