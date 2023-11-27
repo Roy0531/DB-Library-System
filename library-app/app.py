@@ -42,10 +42,10 @@ def add_borrower():
         # validate ssn and phone inputs
         if not ssn_pattern.match(ssn):
             # indicate the user that the ssn input is invalid
-            flash("Invalid SSN Ipnut")
+            flash("Invalid SSN Input, Example Input: 111-11-1111")
         elif not phone_pattern.match(phone):
             # indicate the user that the ssn input is invalid
-            flash("Invalid Phone Ipnut")
+            flash("Invalid Phone Input, Example Input: (111) 111-1111")
         else:
             # check if the same ssn already exists in the database
             borrower = db.session.query(Borrower).filter(Borrower.ssn == ssn).first()
@@ -172,7 +172,7 @@ def checkout():
             over_limit = True
         # display the summary page
         return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
-    # display the ckeck out page
+    # display the check out page
     return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
 
 # Handle chcking in books
@@ -182,11 +182,11 @@ def checkin():
     form = SearchForm()
     searched = ""
     results = []
-    # validate if the form is at least filled in with some saerch terms
+    # validate if the form is at least filled in with some search terms
     if form.validate_on_submit():
         # get the search terms this user typed in
         searched = form.searched.data
-        # create a query object that fetch loan data based on the searhc term gievn
+        # create a query object that fetch loan data based on the search term gievn
         query = (
             db.session.query(BookLoan, Book, Borrower)
             .join(Book, Book.isbn == BookLoan.isbn)
@@ -320,16 +320,16 @@ def payment(id):
             # commit the change to the database
             db.session.commit()
             loan_ids = [fine.loan_id for fine in fine_to_update]
-            # pass the loan id of this fine to recepit() below
+            # pass the loan id of this fine to receipt() below
             session['loan_ids'] = loan_ids
-            # direct user to recipt page
+            # direct user to receipt page
             return redirect(url_for('receipt'))
     # display payment page
     return render_template("payment.html", fine=fine, form=form)
 
 @app.route('/receipt', methods=['GET'])
 def receipt():
-    # get the lona id of the fine that have jsut been paid above
+    # get the loan id of the fine that has just been paid above
     loan_ids = session.get('loan_ids', [])
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
