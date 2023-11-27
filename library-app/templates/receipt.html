@@ -3,6 +3,8 @@
 {% block content %}
 <h3>Receipt Page</h3>
 <p>Payment made successfully on the following loan </p>
-<p>Loan ID: {{ loan_id }}</p>
+{% for loan_id in loan_ids%}
+    <p>Loan ID: {{ loan_id }}</p>
+{% endfor %}
 <a href="{{ url_for('index') }}" class="btn btn-primary">Go Back to Homepage</a>
 {% endblock %}

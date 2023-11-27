@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_
+from sqlalchemy import or_, cast, String, not_, func
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -221,9 +221,9 @@ def summary_in(id):
         overdue=False
         date_difference = (loan_to_update.date_in - loan_to_update.due_date).days
         if date_difference > 14:
+            overdue=True
             existing_fine = db.session.query(BookLoan).filter(BookLoan.loan_id == loan_to_update.loan_id).first()
             if not existing_fine:
-                overdue=True
                 fine_amount = date_difference * 0.25
                 new_fines_entry = Fines(loan_id=loan_to_update.loan_id, fine_amt=fine_amount, paid=False)
                 db.session.add(new_fines_entry)
@@ -256,14 +256,25 @@ def fines():
             db.session.add(new_fines_entry)
     # Commit the changes to the database
     db.session.commit()
-    
-    unpaid_fines = (db.session.query(BookLoan, Fines)
+
+    unpaid_fines_in = (
+        db.session.query(BookLoan.card_id, func.sum(Fines.fine_amt).label('total_fine'))
         .join(Fines, BookLoan.loan_id == Fines.loan_id)
         .filter(Fines.paid == False)
+        .filter(BookLoan.date_in != None)
+        .group_by(BookLoan.card_id)
         .all()
-        )
-    unpaid_fines_in = [loan for loan in unpaid_fines if loan.BookLoan.date_in]
-    unpaid_fines_out = [loan for loan in unpaid_fines if loan.BookLoan.date_in is None]
+    )
+
+    unpaid_fines_out = (
+        db.session.query(BookLoan.card_id, func.sum(Fines.fine_amt).label('total_fine'))
+        .join(Fines, BookLoan.loan_id == Fines.loan_id)
+        .filter(Fines.paid == False)
+        .filter(BookLoan.date_in == None)
+        .group_by(BookLoan.card_id)
+        .all()
+    )
+    
     # query for paid loans
     paid_fines = db.session.query(Fines).filter(Fines.paid == True).all()
     # display the fine page
@@ -272,7 +283,17 @@ def fines():
 # Handle the fine payment
 @app.route('/payment/<id>', methods=['GET', 'POST'])
 def payment(id):
-    fine = db.session.query(Fines).filter(Fines.loan_id == id).first()
+    fine = (
+        db.session.query(BookLoan.card_id, func.sum(Fines.fine_amt).label('total_fine'))
+        .join(Fines, BookLoan.loan_id == Fines.loan_id)
+        .filter(Fines.paid == False)
+        .filter(BookLoan.date_in != None)
+        .filter(BookLoan.card_id == id)
+        .group_by(BookLoan.card_id)
+        .all()
+    )
+
+    # fine = db.session.query(Fines).filter(Fines.loan_id == id).first()
     entered_amount = 0.0
     # create a form object that takes care of payment submission
     form = PaymentForm()
@@ -281,16 +302,26 @@ def payment(id):
         # get the payment amount this user typed in
         entered_amount = form.amount.data
         # validate if this payment is full
-        if entered_amount != float(fine.fine_amt):
+        if entered_amount != float(fine[0][1]):
             # indicate this user that the payment amount has to be exact
             flash('Amount does not match the fine amount.', 'error')
         else:
+            fine_to_update = (
+                    db.session.query(Fines)
+                    .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
+                    .filter(Fines.paid == False)
+                    .filter(BookLoan.date_in != None)
+                    .filter(BookLoan.card_id == id)
+                ).all()
+            print(fine_to_update)
             # update this fine instance to be paid
-            fine.paid = True
+            for fine_instance in fine_to_update:
+                fine_instance.paid = True
             # commit the change to the database
             db.session.commit()
+            loan_ids = [fine.loan_id for fine in fine_to_update]
             # pass the loan id of this fine to recepit() below
-            session['loan_id'] = fine.loan_id
+            session['loan_ids'] = loan_ids
             # direct user to recipt page
             return redirect(url_for('receipt'))
     # display payment page
@@ -299,9 +330,9 @@ def payment(id):
 @app.route('/receipt', methods=['GET'])
 def receipt():
     # get the lona id of the fine that have jsut been paid above
-    loan_id = session.get('loan_id', [])
+    loan_ids = session.get('loan_ids', [])
     # display receipt page
-    return render_template("receipt.html", loan_id=loan_id)
+    return render_template("receipt.html", loan_ids=loan_ids)
 
 # Models
 class Book(db.Model):
