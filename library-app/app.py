@@ -298,32 +298,25 @@ def payment(id):
     # create a form object that takes care of payment submission
     form = PaymentForm()
     # validate if the form is at least filled in with some payment amount
-    if form.validate_on_submit():
-        # get the payment amount this user typed in
-        entered_amount = form.amount.data
-        # validate if this payment is full
-        if entered_amount != float(fine[0][1]):
-            # indicate this user that the payment amount has to be exact
-            flash('Amount does not match the fine amount.', 'error')
-        else:
-            fine_to_update = (
-                    db.session.query(Fines)
-                    .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
-                    .filter(Fines.paid == False)
-                    .filter(BookLoan.date_in != None)
-                    .filter(BookLoan.card_id == id)
-                ).all()
-            print(fine_to_update)
-            # update this fine instance to be paid
-            for fine_instance in fine_to_update:
-                fine_instance.paid = True
-            # commit the change to the database
-            db.session.commit()
-            loan_ids = [fine.loan_id for fine in fine_to_update]
-            # pass the loan id of this fine to receipt() below
-            session['loan_ids'] = loan_ids
-            # direct user to receipt page
-            return redirect(url_for('receipt'))
+    if form.is_submitted():
+        fine_to_update = (
+                db.session.query(Fines)
+                .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
+                .filter(Fines.paid == False)
+                .filter(BookLoan.date_in != None)
+                .filter(BookLoan.card_id == id)
+            ).all()
+        print(fine_to_update)
+        # update this fine instance to be paid
+        for fine_instance in fine_to_update:
+            fine_instance.paid = True
+        # commit the change to the database
+        db.session.commit()
+        loan_ids = [fine.loan_id for fine in fine_to_update]
+        # pass the loan id of this fine to receipt() below
+        session['loan_ids'] = loan_ids
+        # direct user to receipt page
+        return redirect(url_for('receipt'))
     # display payment page
     return render_template("payment.html", fine=fine, form=form)
 

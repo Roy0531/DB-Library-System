@@ -11,7 +11,6 @@ class BorrowerForm(FlaskForm):
     submit = SubmitField("Register")
     
 class PaymentForm(FlaskForm):
-    amount = FloatField("Amount", validators=[DataRequired()])
     submit = SubmitField("Pay")
     
 class SearchForm(FlaskForm):
