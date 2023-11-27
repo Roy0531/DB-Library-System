@@ -17,22 +17,22 @@
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <p  >Loan ID: <strong>{{ unpaid_fine_in.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>{{ unpaid_fine_in.fine_amt }}</strong></p>
+                        <p  >Loan ID: <strong>{{ unpaid_fine_in.BookLoan.loan_id }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>${{ unpaid_fine_in.Fines.fine_amt }}</strong></p>
                         <a href="{{ url_for('payment', id=unpaid_fine_in.loan_id) }}" class="btn btn-primary">Pay this fine</a>
                     </div>
                 </div>
             </div>
-
         {% endfor %}
     </div>
+    <br>
     <div class="card-container">
         {% for unpaid_fine_out in unpaid_fines_out %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <p>Loan ID: <strong>{{ unpaid_fine_out.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>{{ unpaid_fine_out.fine_amt }}</strong></p>
+                        <p>Loan ID: <strong>{{ unpaid_fine_out.Fines.loan_id }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>${{ unpaid_fine_out.Fines.fine_amt }}</strong></p>
                         <p class="card-text">This book is still out</p>
                     </div>
                 </div>
@@ -51,7 +51,7 @@
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
                         <p>Loan ID: <strong>{{ paid_fines.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>{{ paid_fines.fine_amt }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>${{ paid_fines.fine_amt }}</strong></p>
                         <p class="card-text">Paid</p>
                     </div>
                 </div>

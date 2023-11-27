@@ -13,6 +13,7 @@ from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutFo
 load_dotenv()
 db_pass = os.environ.get('DATABASE_PASSWORD')
 
+
 app = Flask(__name__)
 # change the password to yours
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localhost:5432/library_db'
@@ -161,7 +162,7 @@ def checkout():
                 date_out = date.today()
                 # set the due date to 2 weeks after today's date
                 due_date = date_out + timedelta(weeks=2)
-                loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date)
+                loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date, date_in=None)
                 # add this new loan instance to the database
                 db.session.add(loan)
             # commit the changes to the database
@@ -209,15 +210,24 @@ def summary_in(id):
     # this id is loan_id of the books that are going to be checked in
     # query for the book to be checked in
     loan_to_update = db.session.query(BookLoan).filter(BookLoan.loan_id == id).first()
+    print(loan_to_update.loan_id)
     if loan_to_update:
         # get the date of today
         current_date = date.today()
+        # update the date_in of this book loan
         loan_to_update.date_in = current_date
+        # commit the change to the database
         db.session.commit()
         overdue=False
-        date_difference = loan_to_update.date_in - loan_to_update.date_out
-        if date_difference > timedelta(days=14):
-            overdue=True
+        date_difference = (loan_to_update.date_in - loan_to_update.due_date).days
+        if date_difference > 14:
+            existing_fine = db.session.query(BookLoan).filter(BookLoan.loan_id == loan_to_update.loan_id).first()
+            if not existing_fine:
+                overdue=True
+                fine_amount = date_difference * 0.25
+                new_fines_entry = Fines(loan_id=loan_to_update.loan_id, fine_amt=fine_amount, paid=False)
+                db.session.add(new_fines_entry)
+                db.session.commit()
         # query for the remaining loans of this user
         remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.loan_id != loan_to_update.loan_id).all()
     # display the summary page
@@ -226,38 +236,17 @@ def summary_in(id):
 # Handle displaying the fines
 @app.route('/fines')
 def fines():
-    # query for book loans that have been returned and  that their date_in is later than the due_date
-    returned_overdue_loans = db.session.query(BookLoan).filter(
-        BookLoan.date_in is not None, BookLoan.due_date < BookLoan.date_in
-    ).all()
-    # Update fines for overdue books that have been returned
-    for loan in returned_overdue_loans:
-        # Calculate the number of days overdue
-        days_overdue = (loan.date_in - loan.due_date).days
-        # Calculate the fine amount based on the rate of $0.25/day
-        fine_amount = days_overdue * 0.25
-        # Update the fine_amt of the unpaid fines for the corresponding loan_id
-        fines_entry = db.session.query(Fines).filter(Fines.loan_id == loan.loan_id, paid=False).first()
-        if fines_entry:
-            # Update existing entry
-            fines_entry.fine_amt = fine_amount
-        else:
-            # Create a new entry if it doesn't exist
-            new_fines_entry = Fines(loan_id=loan.loan_id, fine_amt=fine_amount, paid=False)
-            db.session.add(new_fines_entry)
     # get the date of today
     today = date.today()
     # Update estimated fines for overdue books that are still out
-    overdue_loans_still_out = db.session.query(BookLoan).filter(
-        BookLoan.due_date < today, BookLoan.date_in is None
-    ).all()
+    overdue_loans_still_out = db.session.query(BookLoan).filter(BookLoan.date_in == None, BookLoan.due_date < today).all()
     for loan in overdue_loans_still_out:
+        fines_entry = db.session.query(Fines).filter(Fines.loan_id == loan.loan_id).first()
         # Calculate the number of days overdue
         days_overdue = (today - loan.due_date).days
         # Calculate the estimated fine amount based on the rate of $0.25/day
         estimated_fine_amount = days_overdue * 0.25
-        # Update the fine_amt in the Fines table for the corresponding loan_id
-        fines_entry = db.session.query(Fines).filter(Fines.loan_id == loan.loan_id).first()
+        # Update the fine_amt of the fine that has the corresponding loan_id, and if fine instance of this loan does not exist yet, create one
         if fines_entry:
             # Update existing entry
             fines_entry.fine_amt = estimated_fine_amount
@@ -268,14 +257,13 @@ def fines():
     # Commit the changes to the database
     db.session.commit()
     
-    # query for all the unpaid loans
-    fines_unpaid = db.session.query(Fines).filter(Fines.paid == False).all()
-    # create a list of lan id of loans queried above
-    unpaid_loan_ids = [fine.loan_id for fine in fines_unpaid]
-    # query for unpaid loans that has date_in value
-    unpaid_fines_in = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is not None).all()
-    # query for unpaid loans that doesn't have date_in value
-    unpaid_fines_out = db.session.query(BookLoan).filter(BookLoan.loan_id.in_(unpaid_loan_ids), BookLoan.date_in is None).all()
+    unpaid_fines = (db.session.query(BookLoan, Fines)
+        .join(Fines, BookLoan.loan_id == Fines.loan_id)
+        .filter(Fines.paid == False)
+        .all()
+        )
+    unpaid_fines_in = [loan for loan in unpaid_fines if loan.BookLoan.date_in]
+    unpaid_fines_out = [loan for loan in unpaid_fines if loan.BookLoan.date_in is None]
     # query for paid loans
     paid_fines = db.session.query(Fines).filter(Fines.paid == True).all()
     # display the fine page
@@ -463,10 +451,10 @@ def generate_sample_fines():
         for count in range(10):
             # populate the book_loan table
             # generate a sample date value
-            date_out = datetime(2023, 1, count+1).date()
+            date_out = datetime(2023, 10, count+1).date()
             # set the due data to date_out + 14 days 
             due_date = date_out + timedelta(weeks=2)
-            loan = BookLoan(isbn=book_records[count].isbn, card_id=borrower_records[count].card_id, date_out=date_out, due_date=due_date)
+            loan = BookLoan(isbn=book_records[count].isbn, card_id=borrower_records[count].card_id, date_out=date_out, due_date=due_date, date_in=None)
             db.session.add(loan)
             
             # populate the fines table
@@ -476,6 +464,8 @@ def generate_sample_fines():
                 loan_id = last_loan.loan_id
                 # randomly decide if this loan is paid or not
                 paid = random.choice([True, False])
+                if paid == True:
+                    last_loan.date_in = due_date
                 # generate a random fine amount with 2 decimal places
                 fine_amt = round(random.uniform(1, 20), 2)
                 bookAuthor = Fines(loan_id=loan_id, fine_amt=fine_amt, paid=paid)
