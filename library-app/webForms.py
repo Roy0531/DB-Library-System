@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import SubmitField, StringField, IntegerField, SubmitField, SelectMultipleField, widgets, FloatField
+from wtforms import SubmitField, StringField, IntegerField, SubmitField, SelectMultipleField, widgets, FloatField, \
+    BooleanField
 from wtforms.validators import DataRequired
 
 
@@ -16,7 +17,14 @@ class PaymentForm(FlaskForm):
 class SearchForm(FlaskForm):
     searched = StringField("Search", validators=[DataRequired()])
     submit = SubmitField("Search")
-    
+
+class CheckInSearchForm(FlaskForm):
+    searched = StringField("Search", validators=[DataRequired()])
+    search_isbn = BooleanField("ISBN")
+    search_card_id = BooleanField("Card ID")
+    search_bname = BooleanField("Borrower Name")
+    submit = SubmitField("Search")
+
 class MultiCheckboxField(SelectMultipleField):
     widget = widgets.ListWidget(prefix_label=False)
     option_widget = widgets.CheckboxInput()

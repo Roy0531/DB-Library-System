@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_, func, text
+from sqlalchemy import or_, cast, String, not_, func, text, false
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -8,7 +8,8 @@ from datetime import datetime, timedelta, date
 import csv
 import psycopg2
 import random
-from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm
+
+from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm, CheckInSearchForm
 import sqlalchemy as db1
 from datetime import date
 
@@ -196,7 +197,7 @@ def checkout():
 @app.route('/checkin', methods=['GET', 'POST'])
 def checkin():
     # create a form object that takes are of search terms submission 
-    form = SearchForm()
+    form = CheckInSearchForm()
     searched = ""
     results = []
     # validate if the form is at least filled in with some search terms
@@ -204,16 +205,20 @@ def checkin():
         # get the search terms this user typed in
         searched = form.searched.data
         # create a query object that fetch loan data based on the search term given
+        criteria = false()
+        if form.search_isbn.data:
+            criteria |= Book.isbn == searched
+        if form.search_card_id.data:
+            criteria |= cast(Borrower.card_id, String) == searched
+        if form.search_bname.data:
+            criteria |= Borrower.bname.ilike(f"%{searched}%")
+
         query = (
             db.session.query(BookLoan, Book, Borrower)
             .join(Book, Book.isbn == BookLoan.isbn)
             .join(Borrower, Borrower.card_id == BookLoan.card_id)
             .filter(
-                or_(
-                    Book.isbn.ilike(f"%{searched}%"),
-                    cast(Borrower.card_id, String).ilike(f"%{searched}%"),
-                    Borrower.bname.ilike(f"%{searched}%")
-                )
+                criteria
             ).distinct()
         )
         # query the data
