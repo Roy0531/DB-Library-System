@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_
+from sqlalchemy import or_, cast, String, not_, text
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 import re
@@ -7,6 +7,9 @@ import csv
 import psycopg2
 import random
 from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm
+import sqlalchemy as db1
+from datetime import date
+
 
 app = Flask(__name__)
 # change the password to yours
@@ -14,6 +17,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:Ryou053101Ori@loc
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
+engine = db1.create_engine("postgresql://postgres:Ryou053101Ori@localhost:5432/library_db")
+
+conn = engine.connect()
 
 @app.route('/')
 def index():
@@ -126,7 +132,20 @@ def checkout():
                 due_date = date_out + timedelta(weeks=2)
                 loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date)
                 db.session.add(loan)
+                query = text("""
+                SELECT loan_id
+                FROM book_loans
+                WHERE isbn = :isbn AND card_id = :card_id
+                """)
+                loan_id = conn.execute(query, {'isbn':book['isbn'], 'card_id':card_id}).fetchone()
+                query = text("""
+                INSERT INTO book_loans(loan_id, fine_amt)
+                VALUES (:loan_id, 0.00)
+                """)
+                conn.execute(query, {'loan_id': loan_id[0]})
             db.session.commit()
+            conn.commit()
+
         else:
             over_limit = True
         return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
@@ -207,8 +226,23 @@ def receipt():
     return render_template("receipt.html", loan_id=loan_id)
 
 
-
-
+# will go through fines database and will update all the fines that haven't been paid
+def update_day_fines():
+    query = text("""
+    UPDATE FINES 
+    SET fine_amt = 
+    CASE 
+        WHEN (fines.paid = FALSE OR fines.paid is NULL) AND BOOK_LOANS.due_date < CURRENT_DATE AND BOOK_LOANS.date_in is NULL
+        THEN EXTRACT(EPOCH FROM AGE(CURRENT_DATE, BOOK_LOANS.due_date))/(24*3600)*0.25
+        ELSE fine_amt
+    END
+	FROM BOOK_LOANS
+	WHERE fines.loan_id = book_loans.loan_id;
+""")
+    conn.execute(query)
+    conn.commit()
+    # query = fines.select()
+    # result = conn.execute(query).fetchall()
 
 
 
@@ -254,7 +288,7 @@ class Fines(db.Model):
     __tablename__ = 'fines'
     loan_id = db.Column(db.Integer, primary_key=True, nullable=False)
     fine_amt = db.Column(db.Numeric(8, 2), nullable=False)
-    paid = db.Column(db.Boolean, nullable=False)
+    paid = db.Column(db.Boolean, nullable=True)
     db.ForeignKeyConstraint(['loan_id'], ['book_loans.loan_id'])
 
 # Create a database named 'library_db'
