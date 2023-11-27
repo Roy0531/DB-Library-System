@@ -16,9 +16,6 @@ load_dotenv()
 db_pass = os.environ.get('DATABASE_PASSWORD')
 do_setup = os.environ.get('DO_SETUP').lower() == 'true'
 
-
-
-
 app = Flask(__name__)
 # change the password to yours
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localhost:5432/library_db'
@@ -50,10 +47,10 @@ def add_borrower():
         # validate ssn and phone inputs
         if not ssn_pattern.match(ssn):
             # indicate the user that the ssn input is invalid
-            flash("Invalid SSN Input")
+            flash("Invalid SSN Input, Example Input: 111-11-1111")
         elif not phone_pattern.match(phone):
             # indicate the user that the ssn input is invalid
-            flash("Invalid Phone Input")
+            flash("Invalid Phone Input, Example Input: (111) 111-1111")
         else:
             # check if the same ssn already exists in the database
             borrower = db.session.query(Borrower).filter(Borrower.ssn == ssn).first()
@@ -342,7 +339,7 @@ def payment(id):
 
 @app.route('/receipt', methods=['GET'])
 def receipt():
-    # get the lona id of the fine that have just been paid above
+    # get the loan id of the fine that has just been paid above
     loan_ids = session.get('loan_ids', [])
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
