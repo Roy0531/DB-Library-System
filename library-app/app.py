@@ -14,6 +14,7 @@ from datetime import date
 
 load_dotenv()
 db_pass = os.environ.get('DATABASE_PASSWORD')
+do_setup = os.environ.get('DO_SETUP').lower() == 'true'
 
 
 
@@ -24,9 +25,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localh
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
-engine = db1.create_engine(f"postgresql://postgres:{db_pass}@localhost:5432/library_db")
-
-conn = engine.connect()
+if not do_setup:
+    engine = db1.create_engine(f"postgresql://postgres:{db_pass}@localhost:5432/library_db")
+    conn = engine.connect()
 
 @app.route('/')
 def index():
@@ -540,12 +541,15 @@ def generate_sample_fines():
         print(f"An error occurred: {e}")
 
 
-# comment out 'app.run(debug=True)' to create a database
-# comment out everything but 'app.run(debug=True)' to run the app
+
+
+# Set DO_SETUP in .env to true to create the database. Set it to another value to run normally
 if __name__ == '__main__':
-    app.run(debug=True)
-    # create_database()
-    # with app.app_context():
-    #     db.create_all()
-    #     insert_records()
-    #     generate_sample_fines()
+    if do_setup:
+        create_database()
+        with app.app_context():
+            db.create_all()
+            insert_records()
+            generate_sample_fines()
+    else:
+        app.run(debug=True)
