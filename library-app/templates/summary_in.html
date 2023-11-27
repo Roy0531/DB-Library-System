@@ -3,12 +3,14 @@
 {% block content %}
 <h3>Sumary Page</h2>
 <h5>Book to Check in</h5>
-
-<p>Borroer ID:  {{ loan_to_update.card_id }}</p></p>
-<p>Date out: {{ loan_to_update.date_out }}</p>
-<p>Date in: {{ loan_to_update.date_in }}</p>
+<br>
+<div class="book-card">
+    <h6><strong>Borroer ID:</strong>  {{ loan_to_update.card_id }}</h6>
+    <h6><strong>Date out:</strong> {{ loan_to_update.date_out }}</h6>
+    <h6><strong>Date in:</strong> {{ loan_to_update.date_in }}</h6>
+</div>
 {% if overdue %}
-    <p>This book is overdue</p>
+    <p style="color: red;"><strong>This book is overdue</strong></p>
 {% endif %}
 {% if remaining_loans %}
     <h5>Remaining Loans</h5>

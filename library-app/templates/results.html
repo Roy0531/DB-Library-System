@@ -4,7 +4,7 @@
 <h3>Search Results of "<strong>{{ searched }}"</strong></h3>
 
 {% if form.books.choices|length > 0 %}
-    <h5 style="color: red;">You can borrow up to 3 books including your loans</h5>
+    <h5>You can borrow a maximum of three books, which include books you have already borrowed</h5>
     <br>
     <form method="POST">
         {{ form.hidden_tag() }}
@@ -30,8 +30,6 @@
         {% endfor %}
         {{ form.submit(class="btn btn-primary") }}
     </form>
-    <br>
-    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
 {% elif  form.books.choices|length == 0 and query_unaval|length > 0%}
     {% for result in query_unaval %}
         <div class="book-card">
@@ -41,9 +39,9 @@
             <p style="color: red;"><strong>This book is currently on loan</strong></p>
         </div>
     {% endfor %}
-    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
 {% else %}
     <p>No results found.</p>
-    <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
 {% endif %}
+<hr style="border-top: 2px solid #929292; margin-top: 20px; margin-bottom: 20px;">
+<a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
 {% endblock %}

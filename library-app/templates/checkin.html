@@ -14,6 +14,7 @@
                     <li>
                         <strong>Title:</strong> <span id="checkin-title">{{ result.Book.title }}</span><br>
                         <strong>ISBN:</strong> <span id="checkin-isbn">{{ result.Book.isbn }}</span><br>
+                        <strong>Card ID:</strong>  <span id="checkin-name">{{ result.Borrower.card_id }}</span><br>
                         <strong>Brrower:</strong>  <span id="checkin-name">{{ result.Borrower.bname }}</span><br>
                     </li>
                     {% if result.BookLoan.date_in == None %}
@@ -26,6 +27,7 @@
                         </div>
                     {% endif %}
                 </div>
+                <br>
             {% endfor %}
         </ul>
     {% else %}

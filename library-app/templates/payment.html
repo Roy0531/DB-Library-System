@@ -13,7 +13,7 @@
 <br>
 <form method="POST">
     {{ form.hidden_tag() }} 
-    <h6>Fine {{ form.amount.label }}:  <strong>{{ fine.fine_amt }}</strong></h6>
+    <h6>Fine {{ form.amount.label }}:  <strong>{{ fine[0][1] }}</strong></h6>
     <p>*Payment must be made in full, partial payment not allowed</p>
     <p id="invalid-payment-amount"></p>
     {{ form.amount(class="form-control") }}
