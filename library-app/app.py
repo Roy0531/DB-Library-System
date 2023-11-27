@@ -393,6 +393,7 @@ def create_database():
     cursor = connection.cursor()
     # Create a new database
     new_database_name = 'library_db'
+    cursor.execute(f"DROP DATABASE IF EXISTS {new_database_name};")
     cursor.execute(f"CREATE DATABASE {new_database_name};")
     print(f"Database '{new_database_name}' created successfully.")
     connection.commit()
@@ -407,7 +408,7 @@ def read_tsv_data():
     # book w/ Author: 24972
     # book w/o Author: 28
     data = []
-    with open('books.tsv', mode='r', newline='') as file:
+    with open('books.tsv', mode='r', newline='', encoding='utf8') as file:
         tsv_reader = csv.reader(file, delimiter='\t')
         next(tsv_reader, None)
         for line in tsv_reader:
@@ -417,7 +418,7 @@ def read_tsv_data():
 # Read in data from borrowers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
-    with open('borrowers.csv', mode='r', newline='') as file:
+    with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
         csv_reader = csv.reader(file)
         next(csv_reader, None)
         for line in csv_reader:
