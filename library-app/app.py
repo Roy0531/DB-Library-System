@@ -15,16 +15,13 @@ from datetime import date
 load_dotenv()
 db_pass = os.environ.get('DATABASE_PASSWORD')
 
-
-
-
 app = Flask(__name__)
 # change the password to yours
 app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql://postgres:{db_pass}@localhost:5432/library_db'
 app.config['SECRET_KEY'] = 'team m'
 
 db = SQLAlchemy(app)
-engine = db1.create_engine("postgresql://postgres:Ryou053101Ori@localhost:5432/library_db")
+engine = db1.create_engine(f"postgresql://postgres:{db_pass}@localhost:5432/library_db")
 
 conn = engine.connect()
 
