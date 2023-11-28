@@ -2,7 +2,7 @@
 This is a Library System Programming Project. It involves creating a database host application that interfaces with a backend SQL database implementing a Library Management System.
 
 # How to run the app
-1. Install necessary modules used in the app
+1. Install necessary modules used in the app(listed in requirements.txt)
 2. Make sure postgres of some version has been installed on your computer
 3. Check if the postgres server is up and running in the background
 4. Change the following lines to correctly set up the app
