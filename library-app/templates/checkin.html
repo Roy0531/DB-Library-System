@@ -17,6 +17,7 @@
                         <strong>Card ID:</strong>  <span id="checkin-name">{{ result.Borrower.card_id }}</span><br>
                         <strong>Borrower:</strong>  <span id="checkin-name">{{ result.Borrower.bname }}</span><br>
                         <strong>Checked out on:</strong> {{ result.BookLoan.date_out }}<br>
+                        <strong>Due on:</strong> {{ result.BookLoan.due_date }}<br>
                         {% if result.BookLoan.date_in != None %}
                             <strong>Checked in on:</strong> {{ result.BookLoan.date_in }}<br>
                         {% endif %}
