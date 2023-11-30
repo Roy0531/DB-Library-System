@@ -436,13 +436,13 @@ def create_database():
     # Close the connection
     connection.close()
 
-# Read in data from books.csv and return an array of the books' data
+# Read in data from books.tsv and return an array of the books' data
 def read_tsv_data():
     # total No. of record: 25000
     # book w/ Author: 24972
     # book w/o Author: 28
     data = []
-    with open('library-app\\books.tsv', mode='r', newline='', encoding='utf8') as file:
+    with open('books.tsv', mode='r', newline='', encoding='utf8') as file:
         tsv_reader = csv.reader(file, delimiter='\t')
         next(tsv_reader, None)
         for line in tsv_reader:
@@ -452,7 +452,7 @@ def read_tsv_data():
 # Read in data from borrowers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
-    with open('library-app\\borrowers.csv', mode='r', newline='', encoding='utf8') as file:
+    with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
         csv_reader = csv.reader(file)
         next(csv_reader, None)
         for line in csv_reader:
