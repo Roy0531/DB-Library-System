@@ -61,7 +61,7 @@ def add_borrower():
             borrower = db.session.query(Borrower).filter(Borrower.ssn == ssn).first()
             if borrower:
                 # indicate the user that the ssn already exists in the database
-                flash("This borrower already registered")
+                flash("A borrower has already been registered with this SSN")
             else:
                 # if all the inputs are valid, create a new borrower instance
                 borrower = Borrower(ssn=form.ssn.data, bname=form.bname.data, address=form.address.data, phone=form.phone.data)
