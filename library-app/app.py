@@ -115,12 +115,12 @@ def results(searched):
     query_aval = base_query.filter(
             not_(
                 db.session.query(BookLoan.isbn)
-                .filter(BookLoan.isbn == Book.isbn)
+                .filter((BookLoan.isbn == Book.isbn) & (BookLoan.date_in == None))
                 .exists()
             )
         ).distinct(Book.isbn).all()
     # query for books currently unavailable
-    query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct(Book.isbn).all()
+    query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).filter(BookLoan.date_in == None).distinct(Book.isbn).all()
 
     query_unaval = list(map(lambda b: (b, ', '.join(map(lambda a: a.name, b.authors))), query_unaval))
     form.books.choices = [(f"{book.isbn}_{book.title}_{', '.join(map(lambda a: a.name,book.authors))}", "") for book in query_aval]
