@@ -11,8 +11,8 @@
         {% for subfield in form.books %}
             <div class="book-card">
                 {% set isbn, title, name = subfield.data.split('_') %}
-                <strong>Title:</strong> <span id="book-title">{{ isbn }}</span><br>
-                <strong>ISBN:</strong>  <span id="book-isbn">{{ title }}</span><br>
+                <strong>Title:</strong> <span id="book-title">{{ title }}</span><br>
+                <strong>ISBN:</strong>  <span id="book-isbn">{{ isbn }}</span><br>
                 <strong>Author:</strong>  <span id="book-name">{{ name }}</span>
                 <div>
                     {{ subfield(class="checked-book") }}
@@ -22,8 +22,8 @@
         {% endfor %}
         {% for result in query_unaval %}
             <div class="book-card">
-                <strong>Title:</strong> <span id="book-title">{{ result[0].isbn }}</span><br>
-                <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].title }}</span><br>
+                <strong>Title:</strong> <span id="book-title">{{ result[0].title }}</span><br>
+                <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].isbn }}</span><br>
                 <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
                 <p style="color: red;"><strong>This book is currently on loan</strong></p>
             </div>
@@ -33,8 +33,8 @@
 {% elif  form.books.choices|length == 0 and query_unaval|length > 0%}
     {% for result in query_unaval %}
         <div class="book-card">
-            <strong>Title:</strong> <span id="book-title">{{ result[0].isbn }}</span><br>
-            <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].title }}</span><br>
+            <strong>Title:</strong> <span id="book-title">{{ result[0].title }}</span><br>
+            <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].isbn }}</span><br>
             <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
             <p style="color: red;"><strong>This book is currently on loan</strong></p>
         </div>
