@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_, func, text, false
+from sqlalchemy import or_, cast, String, not_, func, ForeignKey, false, PrimaryKeyConstraint
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -346,24 +346,6 @@ def receipt():
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
 
-# will go through fines database and will update all the fines that haven't been paid
-def update_day_fines():
-    query = text("""
-    UPDATE FINES 
-    SET fine_amt = 
-    CASE 
-        WHEN (fines.paid = FALSE OR fines.paid is NULL) AND BOOK_LOANS.due_date < CURRENT_DATE AND BOOK_LOANS.date_in is NULL
-        THEN EXTRACT(EPOCH FROM AGE(CURRENT_DATE, BOOK_LOANS.due_date))/(24*3600)*0.25
-        ELSE fine_amt
-    END
-	FROM BOOK_LOANS
-	WHERE fines.loan_id = book_loans.loan_id;
-""")
-    conn.execute(query)
-    conn.commit()
-    # query = fines.select()
-    # result = conn.execute(query).fetchall()
-
 
 # Models
 class Book(db.Model):
@@ -378,8 +360,11 @@ class Authors(db.Model):
 
 class BookAuthors(db.Model):
     __tablename__ = 'book_authors'
-    author_id = db.Column(db.Integer, nullable=False)
-    isbn = db.Column(db.String(13), nullable=False, primary_key=True)
+    author_id = db.Column(db.Integer, ForeignKey('authors.author_id'), nullable=False)
+    isbn = db.Column(db.String(13), ForeignKey('book.isbn'), nullable=False)
+    __table_args__ = (
+        PrimaryKeyConstraint('isbn', 'author_id'),
+    )
     db.ForeignKeyConstraint(['author_id'], ['authors.author_id'])
     db.ForeignKeyConstraint(['isbn'], ['book.isbn'])
 
@@ -446,7 +431,7 @@ def read_tsv_data():
             data.append(line)
     return data
 
-# Read in data from borrowers.csv and retun an array of the borrowers' data
+# Read in data from borroers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
     with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
@@ -474,16 +459,18 @@ def insert_records():
             # populate the authors table
             # books w/o authors doesn't have record[3]
             if record[3]:
-                author_name = record[3]
-                author = Authors(name=author_name)
-                db.session.add(author)
-                # populate the book_authors table
-                # query the author data that has just been inserted in the above lines
-                last_author = Authors.query.order_by(Authors.author_id.desc()).first()
-                if last_author:
-                    author_id = last_author.author_id
-                    bookAuthor = BookAuthors(author_id=author_id, isbn=isbn10)
-                    db.session.add(bookAuthor)
+                author_names = record[3]
+                author_list = author_names.split(',')
+                for author_name in author_list:
+                    author = Authors(name=author_name)
+                    db.session.add(author)
+                    # populate the book_authors table
+                    # query the author data that has just been inserted in the above lines
+                    last_author = Authors.query.order_by(Authors.author_id.desc()).first()
+                    if last_author:
+                        author_id = last_author.author_id
+                        bookAuthor = BookAuthors(author_id=author_id, isbn=isbn10)
+                        db.session.add(bookAuthor)
             count += 1
             # print out the progress message
             if count % 1000 == 0:
