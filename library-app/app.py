@@ -75,7 +75,7 @@ def add_borrower():
                 # commit the change to the database
                 db.session.commit()
                 # indicate the user that the new borrower successfully registered
-                flash("User Registered Successfully")
+                flash(f"User Registered Successfully. {borrower.bname}'s card ID is {borrower.card_id}")
     # display the add_borrower page
     return render_template("add_borrower.html", form = form)
 
