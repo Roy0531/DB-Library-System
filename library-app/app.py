@@ -1,4 +1,4 @@
-from sqlalchemy import or_, cast, String, not_, func, text, false
+from sqlalchemy import or_, cast, String, not_, func, ForeignKey, false, PrimaryKeyConstraint
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -148,14 +148,25 @@ def checkout():
     form = CheckOutForm()
     # used in the input validation below
     loan_count = 0
+    over_limit = False
+    outstanding_fine = False
+    due_date = None
     # validate card id input
     if form.validate_on_submit():
         # get the card id value this user typed in
         card_id = form.card_id.data
-        # get the number of book loan this user already has
-        loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).filter(BookLoan.date_in == None).count()
+        # get all the book loans this user already has
+        loans = db.session.query(BookLoan).filter(BookLoan.card_id == card_id).all()
+        loan_count = len(loans)
+        # check for fines
+        for l in loans:
+            l: BookLoan
+            if db.session.query(Fines).filter((Fines.loan_id == l.loan_id) & (Fines.paid == False) & (Fines.fine_amt > 0)).count() > 0:
+                outstanding_fine = True
+                break
+
         # check if the total number of book loan for this user does not exceed 3
-        if checkout_count + loan_count <= 3:
+        if checkout_count + loan_count <= 3 and not outstanding_fine:
             # create book loan instances for each book this user is borrowing
             for book in book_data_list:
                 # get the date of today
@@ -166,12 +177,15 @@ def checkout():
                 # add this new loan instance to the database
                 db.session.add(loan)
             db.session.commit()
-            # display the summary page
-            return render_template('summary_out.html', book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count)
+            conn.commit()
+
         else:
-            flash(f'This borrower already has {loan_count} loans, borrowing {checkout_count} books exceeds the limit.')
+            # the total number of loan this user is going to have exceed 3
+            over_limit = True
+        # display the summary page
+        return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count, outstanding_fine=outstanding_fine)
     # display the check out page
-    return render_template("checkout.html", form=form, book_data_list=book_data_list)
+    return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list, outstanding_fine=outstanding_fine)
 
 # Handle checking in books
 @app.route('/checkin', methods=['GET', 'POST'])
@@ -222,7 +236,7 @@ def summary_in(id):
         overdue=False
         date_difference = (loan_to_update.date_in - loan_to_update.due_date).days
         if date_difference > 14:
-            # fine for this loan is created when the user goes to "manage fines" page 
+            # fine for this loan is created when the user goes to "manage fines" page
             overdue=True
         # query for the remaining loans of this user
         remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.date_in == None).all()
@@ -356,8 +370,11 @@ class Authors(db.Model):
 
 class BookAuthors(db.Model):
     __tablename__ = 'book_authors'
-    author_id = db.Column(db.Integer, nullable=False)
-    isbn = db.Column(db.String(13), nullable=False, primary_key=True)
+    author_id = db.Column(db.Integer, ForeignKey('authors.author_id'), nullable=False)
+    isbn = db.Column(db.String(13), ForeignKey('book.isbn'), nullable=False)
+    __table_args__ = (
+        PrimaryKeyConstraint('isbn', 'author_id'),
+    )
     db.ForeignKeyConstraint(['author_id'], ['authors.author_id'])
     db.ForeignKeyConstraint(['isbn'], ['book.isbn'])
 
@@ -424,7 +441,7 @@ def read_tsv_data():
             data.append(line)
     return data
 
-# Read in data from borrowers.csv and retun an array of the borrowers' data
+# Read in data from borroers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
     with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
@@ -452,16 +469,18 @@ def insert_records():
             # populate the authors table
             # books w/o authors doesn't have record[3]
             if record[3]:
-                author_name = record[3]
-                author = Authors(name=author_name)
-                db.session.add(author)
-                # populate the book_authors table
-                # query the author data that has just been inserted in the above lines
-                last_author = Authors.query.order_by(Authors.author_id.desc()).first()
-                if last_author:
-                    author_id = last_author.author_id
-                    bookAuthor = BookAuthors(author_id=author_id, isbn=isbn10)
-                    db.session.add(bookAuthor)
+                author_names = record[3]
+                author_list = author_names.split(',')
+                for author_name in author_list:
+                    author = Authors(name=author_name)
+                    db.session.add(author)
+                    # populate the book_authors table
+                    # query the author data that has just been inserted in the above lines
+                    last_author = Authors.query.order_by(Authors.author_id.desc()).first()
+                    if last_author:
+                        author_id = last_author.author_id
+                        bookAuthor = BookAuthors(author_id=author_id, isbn=isbn10)
+                        db.session.add(bookAuthor)
             count += 1
             # print out the progress message
             if count % 1000 == 0:
