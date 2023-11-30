@@ -1,4 +1,6 @@
-from sqlalchemy import or_, cast, String, not_, func, ForeignKey, false, PrimaryKeyConstraint
+from typing import List
+
+from sqlalchemy import or_, cast, String, not_, func, ForeignKey, false, PrimaryKeyConstraint, ForeignKeyConstraint
 from flask import Flask, render_template, flash, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -8,6 +10,8 @@ from datetime import datetime, timedelta, date
 import csv
 import psycopg2
 import random
+
+from sqlalchemy.orm import Mapped, relationship
 
 from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm, CheckInSearchForm
 import sqlalchemy as db1
@@ -96,7 +100,7 @@ def results(searched):
     form = BookForm()
     # base query object used to query for books currently available and unavailable
     base_query = (
-        db.session.query(Book, Authors)
+        db.session.query(Book)
         .join(BookAuthors, Book.isbn == BookAuthors.isbn)
         .join(Authors, Authors.author_id == BookAuthors.author_id)
         .filter(
@@ -114,10 +118,12 @@ def results(searched):
                 .filter(BookLoan.isbn == Book.isbn)
                 .exists()
             )
-        ).distinct().all()
+        ).distinct(Book.isbn).all()
     # query for books currently unavailable
-    query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct().all()
-    form.books.choices = [(f"{book.isbn}_{book.title}_{author.name}", "") for book, author in query_aval]
+    query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct(Book.isbn).all()
+
+    query_unaval = list(map(lambda b: (b, ', '.join(map(lambda a: a.name, b.authors))), query_unaval))
+    form.books.choices = [(f"{book.isbn}_{book.title}_{', '.join(map(lambda a: a.name,book.authors))}", "") for book in query_aval]
     if form.validate_on_submit():
         # pass the selected books data to checkout() function below
         session['selected_books'] = form.books.data
@@ -353,6 +359,8 @@ class Book(db.Model):
     isbn = db.Column(db.String(10), primary_key=True, nullable=False)
     title = db.Column(db.String(255), nullable=False)
 
+    authors: Mapped[List['Authors']] = relationship('Authors', secondary='book_authors')
+
 class Authors(db.Model):
     __tablename__ = 'authors'
     author_id = db.Column(db.Integer, primary_key=True, nullable=False)
@@ -364,6 +372,8 @@ class BookAuthors(db.Model):
     isbn = db.Column(db.String(13), ForeignKey('book.isbn'), nullable=False)
     __table_args__ = (
         PrimaryKeyConstraint('isbn', 'author_id'),
+        ForeignKeyConstraint(['author_id'], ['authors.author_id'], name='book_authors_author_id_fkey'),
+        ForeignKeyConstraint(['isbn'], ['book.isbn'], name='book_authors_isbn_fkey'),
     )
     db.ForeignKeyConstraint(['author_id'], ['authors.author_id'])
     db.ForeignKeyConstraint(['isbn'], ['book.isbn'])

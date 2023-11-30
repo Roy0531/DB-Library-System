@@ -24,7 +24,7 @@
             <div class="book-card">
                 <strong>Title:</strong> <span id="book-title">{{ result[0].title }}</span><br>
                 <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].isbn }}</span><br>
-                <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
+                <strong>Authors:</strong>  <span id="book-name">{{ result[1] }}</span>
                 <p style="color: red;"><strong>This book is currently on loan</strong></p>
             </div>
         {% endfor %}
@@ -35,7 +35,7 @@
         <div class="book-card">
             <strong>Title:</strong> <span id="book-title">{{ result[0].title }}</span><br>
             <strong>ISBN:</strong>  <span id="book-isbn">{{ result[0].isbn }}</span><br>
-            <strong>Author:</strong>  <span id="book-name">{{ result[1].name }}</span>
+            <strong>Author:</strong>  <span id="book-name">{{ result[1] }}</span>
             <p style="color: red;"><strong>This book is currently on loan</strong></p>
         </div>
     {% endfor %}
