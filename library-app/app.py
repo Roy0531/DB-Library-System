@@ -338,24 +338,6 @@ def receipt():
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
 
-# will go through fines database and will update all the fines that haven't been paid
-def update_day_fines():
-    query = text("""
-    UPDATE FINES 
-    SET fine_amt = 
-    CASE 
-        WHEN (fines.paid = FALSE OR fines.paid is NULL) AND BOOK_LOANS.due_date < CURRENT_DATE AND BOOK_LOANS.date_in is NULL
-        THEN EXTRACT(EPOCH FROM AGE(CURRENT_DATE, BOOK_LOANS.due_date))/(24*3600)*0.25
-        ELSE fine_amt
-    END
-	FROM BOOK_LOANS
-	WHERE fines.loan_id = book_loans.loan_id;
-""")
-    conn.execute(query)
-    conn.commit()
-    # query = fines.select()
-    # result = conn.execute(query).fetchall()
-
 
 # Models
 class Book(db.Model):
