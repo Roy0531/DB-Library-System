@@ -80,7 +80,6 @@ def add_borrower():
 def search():
     # create a form object that takes are of search terms submission
     form = SearchForm()
-    searched = ""
     # validate if the form is at least filled in with some search terms
     if form.validate_on_submit():
         # get the search terms this user typed in
@@ -95,7 +94,7 @@ def search():
 def results(searched):
     # create a form object that takes care of books' data submission
     form = BookForm()
-    # base query used to query for books currently available and unavailable
+    # base query object used to query for books currently available and unavailable
     base_query = (
         db.session.query(Book, Authors)
         .join(BookAuthors, Book.isbn == BookAuthors.isbn)
@@ -107,7 +106,6 @@ def results(searched):
                 Authors.name.ilike(f"%{searched}%")
             )
         )
-        
     )
     # query for books currently available
     query_aval = base_query.filter(
@@ -119,9 +117,7 @@ def results(searched):
         ).distinct().all()
     # query for books currently unavailable
     query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct().all()
-    
     form.books.choices = [(f"{book.isbn}_{book.title}_{author.name}", "") for book, author in query_aval]
-
     if form.validate_on_submit():
         # pass the selected books data to checkout() function below
         session['selected_books'] = form.books.data
@@ -175,22 +171,11 @@ def checkout():
             for book in book_data_list:
                 # get the date of today
                 date_out = date.today()
-                # set the due date to 2 weeks after today's date
+                # set the due date to 2 weeks from today's date
                 due_date = date_out + timedelta(weeks=2)
                 loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date, date_in=None)
                 # add this new loan instance to the database
                 db.session.add(loan)
-                query = text("""
-                SELECT loan_id
-                FROM book_loans
-                WHERE isbn = :isbn AND card_id = :card_id
-                """)
-                loan_id = conn.execute(query, {'isbn':book['isbn'], 'card_id':card_id}).fetchone()
-                query = text("""
-                INSERT INTO book_loans(loan_id, fine_amt)
-                VALUES (:loan_id, 0.00)
-                """)
-                conn.execute(query, {'loan_id': loan_id[0]})
             db.session.commit()
             conn.commit()
 
@@ -241,7 +226,6 @@ def summary_in(id):
     # this id is loan_id of the books that are going to be checked in
     # query for the book to be checked in
     loan_to_update = db.session.query(BookLoan).filter(BookLoan.loan_id == id).first()
-    print(loan_to_update.loan_id)
     if loan_to_update:
         # get the date of today
         current_date = date.today()
@@ -252,15 +236,11 @@ def summary_in(id):
         overdue=False
         date_difference = (loan_to_update.date_in - loan_to_update.due_date).days
         if date_difference > 14:
+            # fine for this loan is created when the user goes to "manage fines" page
             overdue=True
-            existing_fine = db.session.query(BookLoan).filter(BookLoan.loan_id == loan_to_update.loan_id).first()
-            if not existing_fine:
-                fine_amount = date_difference * 0.25
-                new_fines_entry = Fines(loan_id=loan_to_update.loan_id, fine_amt=fine_amount, paid=False)
-                db.session.add(new_fines_entry)
-                db.session.commit()
         # query for the remaining loans of this user
-        remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.loan_id != loan_to_update.loan_id).all()
+        remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.date_in == None).all()
+        print(remaining_loans)
     # display the summary page
     return render_template("summary_in.html", loan_to_update=loan_to_update, remaining_loans=remaining_loans, overdue=overdue)
 
@@ -329,25 +309,32 @@ def payment(id):
     # create a form object that takes care of payment submission
     form = PaymentForm()
     # validate if the form is at least filled in with some payment amount
-    if form.is_submitted():
-        fine_to_update = (
-                db.session.query(Fines)
-                .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
-                .filter(Fines.paid == False)
-                .filter(BookLoan.date_in != None)
-                .filter(BookLoan.card_id == id)
-            ).all()
-        print(fine_to_update)
-        # update this fine instance to be paid
-        for fine_instance in fine_to_update:
-            fine_instance.paid = True
-        # commit the change to the database
-        db.session.commit()
-        loan_ids = [fine.loan_id for fine in fine_to_update]
-        # pass the loan id of this fine to receipt() below
-        session['loan_ids'] = loan_ids
-        # direct user to receipt page
-        return redirect(url_for('receipt'))
+    if form.validate_on_submit():
+        # get the payment amount this user typed in
+        entered_amount = form.amount.data
+        # validate if this payment is full
+        if entered_amount != float(fine[0][1]):
+            # indicate this user that the payment amount has to be exact
+            flash('Amount does not match the fine amount.', 'error')
+        else:
+            fine_to_update = (
+                    db.session.query(Fines)
+                    .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
+                    .filter(Fines.paid == False)
+                    .filter(BookLoan.date_in != None)
+                    .filter(BookLoan.card_id == id)
+                ).all()
+            print(fine_to_update)
+            # update this fine instance to be paid
+            for fine_instance in fine_to_update:
+                fine_instance.paid = True
+            # commit the change to the database
+            db.session.commit()
+            loan_ids = [fine.loan_id for fine in fine_to_update]
+            # pass the loan id of this fine to recepit() below
+            session['loan_ids'] = loan_ids
+            # direct user to recipt page
+            return redirect(url_for('receipt'))
     # display payment page
     return render_template("payment.html", fine=fine, form=form)
 
@@ -357,24 +344,6 @@ def receipt():
     loan_ids = session.get('loan_ids', [])
     # display receipt page
     return render_template("receipt.html", loan_ids=loan_ids)
-
-# will go through fines database and will update all the fines that haven't been paid
-def update_day_fines():
-    query = text("""
-    UPDATE FINES 
-    SET fine_amt = 
-    CASE 
-        WHEN (fines.paid = FALSE OR fines.paid is NULL) AND BOOK_LOANS.due_date < CURRENT_DATE AND BOOK_LOANS.date_in is NULL
-        THEN EXTRACT(EPOCH FROM AGE(CURRENT_DATE, BOOK_LOANS.due_date))/(24*3600)*0.25
-        ELSE fine_amt
-    END
-	FROM BOOK_LOANS
-	WHERE fines.loan_id = book_loans.loan_id;
-""")
-    conn.execute(query)
-    conn.commit()
-    # query = fines.select()
-    # result = conn.execute(query).fetchall()
 
 
 # Models
@@ -445,7 +414,7 @@ def create_database():
     # Close the connection
     connection.close()
 
-# Read in data from books.csv and return an array of the books' data
+# Read in data from books.tsv and return an array of the books' data
 def read_tsv_data():
     # total No. of record: 25000
     # book w/ Author: 24972

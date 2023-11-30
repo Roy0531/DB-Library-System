@@ -9,7 +9,7 @@
     <a href="{{ url_for('search') }}" class="btn btn-primary">Go Back to Search</a>
 {% else %}
     <h3>Summary</h3>
-    <h4>Due Date of the Following Books: <span style="color: red;">{{ due_date }}</span></h4>
+    <h4>Due Date of the Following Books: <span style="color: rgb(196, 102, 102);">{{ due_date }}</span></h4>
     <div class="book-container">
         {% for book in book_data_list %}
             <div class="book-entry">

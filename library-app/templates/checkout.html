@@ -1,6 +1,12 @@
 {% extends 'base.html' %}
 
 {% block content %}
+{% for message in get_flashed_messages() %}
+    <div class="alert alert-primary alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endfor %}
 <h3>Check out</h3>
 <h5>Books you are borrowing</h5>
 <div class="book-container">
@@ -14,7 +20,6 @@
         </div>
     {% endfor %}
 </div>
-
 <form action="" method="POST">
     {{ form.hidden_tag() }}
     {{ form.card_id.label }}
@@ -23,5 +28,4 @@
     <br>
     {{ form.submit(class="btn btn-primary") }}
 </form>
-
 {% endblock %}
