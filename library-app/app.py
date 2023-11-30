@@ -220,6 +220,7 @@ def checkin():
             .filter(
                 criteria
             ).distinct()
+            .order_by(BookLoan.date_in.desc()) # order by descending date_in so already checked in books go at the bottom
         )
         # query the data
         results = query.all()
