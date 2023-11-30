@@ -153,15 +153,24 @@ def checkout():
     # used in the input validation below
     loan_count = 0
     over_limit = False
+    outstanding_fine = False
     due_date = None
     # validate card id input
     if form.validate_on_submit():
         # get the card id value this user typed in
         card_id = form.card_id.data
-        # get the number of book loan this user already has
-        loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).count()
+        # get all the book loans this user already has
+        loans = db.session.query(BookLoan).filter(BookLoan.card_id == card_id).all()
+        loan_count = len(loans)
+        # check for fines
+        for l in loans:
+            l: BookLoan
+            if db.session.query(Fines).filter((Fines.loan_id == l.loan_id) & (Fines.paid == False) & (Fines.fine_amt > 0)).count() > 0:
+                outstanding_fine = True
+                break
+
         # check if the total number of book loan for this user does not exceed 3
-        if checkout_count + loan_count <= 3:
+        if checkout_count + loan_count <= 3 and not outstanding_fine:
             # create book loan instances for each book this user is borrowing
             for book in book_data_list:
                 # get the date of today
@@ -189,9 +198,9 @@ def checkout():
             # the total number of loan this user is going to have exceed 3
             over_limit = True
         # display the summary page
-        return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
+        return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count, outstanding_fine=outstanding_fine)
     # display the check out page
-    return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
+    return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list, outstanding_fine=outstanding_fine)
 
 # Handle checking in books
 @app.route('/checkin', methods=['GET', 'POST'])
