@@ -16,6 +16,10 @@
                         <strong>ISBN:</strong> <span id="checkin-isbn">{{ result.Book.isbn }}</span><br>
                         <strong>Card ID:</strong>  <span id="checkin-name">{{ result.Borrower.card_id }}</span><br>
                         <strong>Borrower:</strong>  <span id="checkin-name">{{ result.Borrower.bname }}</span><br>
+                        <strong>Checked out on:</strong> {{ result.BookLoan.date_out }}<br>
+                        {% if result.BookLoan.date_in != None %}
+                            <strong>Checked in on:</strong> {{ result.BookLoan.date_in }}<br>
+                        {% endif %}
                     </li>
                     {% if result.BookLoan.date_in == None %}
                         <div class="checkin-button">
