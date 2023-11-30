@@ -105,7 +105,7 @@ def results(searched):
         .join(Authors, Authors.author_id == BookAuthors.author_id)
         .filter(
             or_(
-                Book.isbn.ilike(f"%{searched}%"),
+                Book.isbn == f"%{searched}%",
                 Book.title.ilike(f"%{searched}%"),
                 Authors.name.ilike(f"%{searched}%")
             )
