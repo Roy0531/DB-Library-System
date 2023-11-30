@@ -163,13 +163,15 @@ def checkout():
         card_id = form.card_id.data
         # get all the book loans this user already has
         loans = db.session.query(BookLoan).filter(BookLoan.card_id == card_id).all()
-        loan_count = len(loans)
-        # check for fines
+        loan_count = 0
+        # check for fines & count outstanding loans
         for l in loans:
             l: BookLoan
             if db.session.query(Fines).filter((Fines.loan_id == l.loan_id) & (Fines.paid == False) & (Fines.fine_amt > 0)).count() > 0:
                 outstanding_fine = True
                 break
+            if l.date_in is None:
+                loan_count += 1
 
         # check if the total number of book loan for this user does not exceed 3
         if checkout_count + loan_count <= 3 and not outstanding_fine:
