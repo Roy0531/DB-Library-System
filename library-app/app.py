@@ -80,7 +80,6 @@ def add_borrower():
 def search():
     # create a form object that takes are of search terms submission
     form = SearchForm()
-    searched = ""
     # validate if the form is at least filled in with some search terms
     if form.validate_on_submit():
         # get the search terms this user typed in
@@ -95,7 +94,7 @@ def search():
 def results(searched):
     # create a form object that takes care of books' data submission
     form = BookForm()
-    # base query used to query for books currently available and unavailable
+    # base query object used to query for books currently available and unavailable
     base_query = (
         db.session.query(Book, Authors)
         .join(BookAuthors, Book.isbn == BookAuthors.isbn)
@@ -107,7 +106,6 @@ def results(searched):
                 Authors.name.ilike(f"%{searched}%")
             )
         )
-        
     )
     # query for books currently available
     query_aval = base_query.filter(
@@ -119,9 +117,7 @@ def results(searched):
         ).distinct().all()
     # query for books currently unavailable
     query_unaval = base_query.join(BookLoan, BookLoan.isbn == Book.isbn).distinct().all()
-    
     form.books.choices = [(f"{book.isbn}_{book.title}_{author.name}", "") for book, author in query_aval]
-
     if form.validate_on_submit():
         # pass the selected books data to checkout() function below
         session['selected_books'] = form.books.data
@@ -152,46 +148,30 @@ def checkout():
     form = CheckOutForm()
     # used in the input validation below
     loan_count = 0
-    over_limit = False
-    due_date = None
     # validate card id input
     if form.validate_on_submit():
         # get the card id value this user typed in
         card_id = form.card_id.data
         # get the number of book loan this user already has
-        loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).count()
+        loan_count = db.session.query(BookLoan).filter(BookLoan.card_id ==card_id).filter(BookLoan.date_in == None).count()
         # check if the total number of book loan for this user does not exceed 3
         if checkout_count + loan_count <= 3:
             # create book loan instances for each book this user is borrowing
             for book in book_data_list:
                 # get the date of today
                 date_out = date.today()
-                # set the due date to 2 weeks after today's date
+                # set the due date to 2 weeks from today's date
                 due_date = date_out + timedelta(weeks=2)
                 loan = BookLoan(isbn=book['isbn'], card_id=card_id, date_out=date_out, due_date=due_date, date_in=None)
                 # add this new loan instance to the database
                 db.session.add(loan)
-                query = text("""
-                SELECT loan_id
-                FROM book_loans
-                WHERE isbn = :isbn AND card_id = :card_id
-                """)
-                loan_id = conn.execute(query, {'isbn':book['isbn'], 'card_id':card_id}).fetchone()
-                query = text("""
-                INSERT INTO book_loans(loan_id, fine_amt)
-                VALUES (:loan_id, 0.00)
-                """)
-                conn.execute(query, {'loan_id': loan_id[0]})
             db.session.commit()
-            conn.commit()
-
+            # display the summary page
+            return render_template('summary_out.html', book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count)
         else:
-            # the total number of loan this user is going to have exceed 3
-            over_limit = True
-        # display the summary page
-        return render_template('summary_out.html', over_limit=over_limit, book_data_list=book_data_list, due_date=due_date, checkout_count=checkout_count, loan_count=loan_count)
+            flash(f'This borrower already has {loan_count} loans, borrowing {checkout_count} books exceeds the limit.')
     # display the check out page
-    return render_template("checkout.html", form=form, over_limit=over_limit, book_data_list=book_data_list)
+    return render_template("checkout.html", form=form, book_data_list=book_data_list)
 
 # Handle checking in books
 @app.route('/checkin', methods=['GET', 'POST'])
@@ -232,7 +212,6 @@ def summary_in(id):
     # this id is loan_id of the books that are going to be checked in
     # query for the book to be checked in
     loan_to_update = db.session.query(BookLoan).filter(BookLoan.loan_id == id).first()
-    print(loan_to_update.loan_id)
     if loan_to_update:
         # get the date of today
         current_date = date.today()
@@ -243,15 +222,11 @@ def summary_in(id):
         overdue=False
         date_difference = (loan_to_update.date_in - loan_to_update.due_date).days
         if date_difference > 14:
+            # fine for this loan is created when the user goes to "manage fines" page 
             overdue=True
-            existing_fine = db.session.query(BookLoan).filter(BookLoan.loan_id == loan_to_update.loan_id).first()
-            if not existing_fine:
-                fine_amount = date_difference * 0.25
-                new_fines_entry = Fines(loan_id=loan_to_update.loan_id, fine_amt=fine_amount, paid=False)
-                db.session.add(new_fines_entry)
-                db.session.commit()
         # query for the remaining loans of this user
-        remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.loan_id != loan_to_update.loan_id).all()
+        remaining_loans = db.session.query(BookLoan).filter(BookLoan.card_id == loan_to_update.card_id).filter(BookLoan.date_in == None).all()
+        print(remaining_loans)
     # display the summary page
     return render_template("summary_in.html", loan_to_update=loan_to_update, remaining_loans=remaining_loans, overdue=overdue)
 
