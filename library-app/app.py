@@ -442,7 +442,7 @@ def read_tsv_data():
     # book w/ Author: 24972
     # book w/o Author: 28
     data = []
-    with open('books.tsv', mode='r', newline='', encoding='utf8') as file:
+    with open('library-app\\books.tsv', mode='r', newline='', encoding='utf8') as file:
         tsv_reader = csv.reader(file, delimiter='\t')
         next(tsv_reader, None)
         for line in tsv_reader:
@@ -452,7 +452,7 @@ def read_tsv_data():
 # Read in data from borrowers.csv and retun an array of the borrowers' data
 def read_csv_data():
     data = []
-    with open('borrowers.csv', mode='r', newline='', encoding='utf8') as file:
+    with open('library-app\\borrowers.csv', mode='r', newline='', encoding='utf8') as file:
         csv_reader = csv.reader(file)
         next(csv_reader, None)
         for line in csv_reader:
