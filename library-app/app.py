@@ -269,25 +269,33 @@ def fines():
     db.session.commit()
 
     unpaid_fines_in = (
-        db.session.query(BookLoan.card_id, func.sum(Fines.fine_amt).label('total_fine'))
+        db.session.query(func.concat(func.concat(BookLoan.card_id, " "), Borrower.bname).label('id_name'), func.sum(Fines.fine_amt).label('total_fine'))
+        .join(BookLoan, BookLoan.card_id == Borrower.card_id)
         .join(Fines, BookLoan.loan_id == Fines.loan_id)
         .filter(Fines.paid == False)
         .filter(BookLoan.date_in != None)
-        .group_by(BookLoan.card_id)
+        .group_by('id_name')
         .all()
     )
 
     unpaid_fines_out = (
-        db.session.query(BookLoan.card_id, func.sum(Fines.fine_amt).label('total_fine'))
+        db.session.query(func.concat(func.concat(BookLoan.card_id, " "), Borrower.bname).label('id_name'), func.sum(Fines.fine_amt).label('total_fine'))
+        .join(BookLoan, BookLoan.card_id == Borrower.card_id)
         .join(Fines, BookLoan.loan_id == Fines.loan_id)
         .filter(Fines.paid == False)
         .filter(BookLoan.date_in == None)
-        .group_by(BookLoan.card_id)
+        .group_by('id_name')
         .all()
     )
     
     # query for paid loans
-    paid_fines = db.session.query(Fines).filter(Fines.paid == True).all()
+    paid_fines = (
+        db.session.query(Fines, Borrower.card_id, Borrower.bname, Book.title)
+        .join(BookLoan, Fines.loan_id == BookLoan.loan_id)
+        .join(Borrower, BookLoan.card_id == Borrower.card_id)
+        .join(Book, BookLoan.isbn == Book.isbn)
+        .filter(Fines.paid == True).distinct(BookLoan.loan_id).all()
+    )
     # display the fine page
     return render_template("fines.html", unpaid_fines_in=unpaid_fines_in, unpaid_fines_out=unpaid_fines_out, paid_fines=paid_fines)
 

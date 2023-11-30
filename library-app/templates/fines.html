@@ -13,11 +13,13 @@
     <h5>Unpaid Fines</h5>
     <br>
     <div class="card-container">
-        {% for card_id, total_fine in unpaid_fines_in %}
+        {% for id_name, total_fine in unpaid_fines_in %}
+            {% set card_id, bname = id_name.split(' ', 1) %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
                         <p>Card ID: <strong>{{ card_id }}</strong></p>
+                        <p>Borrower: <strong>{{ bname }}</strong></p>
                         <p class="card-title">Fine Amount <strong>${{ total_fine }}</strong></p>
                         <a href="{{ url_for('payment', id=card_id) }}" class="btn btn-primary">Pay this fine</a>
                     </div>
@@ -27,11 +29,13 @@
     </div>
     <br>
     <div class="card-container">
-        {% for card_id, total_fine in unpaid_fines_out %}
+        {% for id_name, total_fine in unpaid_fines_out %}
+            {% set card_id, bname = id_name.split(' ', 1) %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
                         <p>Card ID: <strong>{{ card_id }}</strong></p>
+                        <p>Borrower: <strong>{{ bname }}</strong></p>
                         <p class="card-title">Fine Amount <strong>${{ total_fine }}</strong></p>
                         <p class="card-text">This book is still out</p>
                     </div>
@@ -45,12 +49,14 @@
     <h5>Paid Fines</h5>
     <br>
     <div class="card-container">
-        {% for paid_fines in paid_fines %}
+        {% for f, b_id, b_name, title in paid_fines %}
             <div class="card" style="width: 15rem;">
                 <div class="card-body">
                     <div style="display: flex; flex-direction: column; align-items: center;">
-                        <p>Loan ID: <strong>{{ paid_fines.loan_id }}</strong></p>
-                        <p class="card-title">Fine Amount <strong>${{ paid_fines.fine_amt }}</strong></p>
+                        <p>Card ID: <strong>{{ b_id }}</strong></p>
+                        <p>Borrower: <strong>{{ b_name }}</strong></p>
+                        <p>Title: <strong>{{ title }}</strong></p>
+                        <p class="card-title">Fine Amount <strong>${{ f.fine_amt }}</strong></p>
                         <p class="card-text">Paid</p>
                     </div>
                 </div>
