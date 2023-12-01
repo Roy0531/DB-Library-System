@@ -13,7 +13,7 @@ import random
 
 from sqlalchemy.orm import Mapped, relationship
 
-from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm, CheckInSearchForm
+from webForms import BorrowerForm, PaymentForm, SearchForm, BookForm, CheckOutForm, CheckInSearchForm, IsbnForm
 import sqlalchemy as db1
 from datetime import date
 
@@ -126,12 +126,44 @@ def results(searched):
     form.books.choices = [(f"{book.isbn}_{book.title}_{', '.join(map(lambda a: a.name,book.authors))}", "") for book in query_aval]
     if form.validate_on_submit():
         # pass the selected books data to checkout() function below
+        print(form.books.data)
         session['selected_books'] = form.books.data
         return redirect(url_for('checkout'))
     else:
         print("Validation Failed")
     # display the results page
     return render_template("results.html", searched=searched, form=form, query_unaval=query_unaval)
+
+# Handle checking out by isbn
+@app.route('/isbn_checkout', methods=['GET', 'POST'])
+def isbn_checkout():
+    form = IsbnForm()
+    if form.validate_on_submit():
+        isbn = form.isbn.data
+        form.isbn.data = ""
+        # ----------------------------------------------------------------
+        query = (
+                db.session.query(Book)
+                .join(BookAuthors, Book.isbn == BookAuthors.isbn)
+                .join(Authors, Authors.author_id == BookAuthors.author_id)
+                .filter(
+                    Book.isbn == isbn
+                )
+            )
+        book = query.filter(
+            not_(
+                db.session.query(BookLoan.isbn)
+                .filter((BookLoan.isbn == Book.isbn) & (BookLoan.date_in == None))
+                .exists()
+            )
+        ).distinct(Book.isbn).first()
+        
+        if book:
+            session['selected_books'] = [f"{book.isbn}_{book.title}_{', '.join(map(lambda a: a.name,book.authors))}"]
+            return redirect(url_for('checkout'))
+        else:
+            flash(f'The book with isbn: {isbn} is on loan')
+    return render_template("isbn_checkout.html", form=form)
 
 # Handle checking out books
 @app.route('/checkout', methods=['Get','POST'])

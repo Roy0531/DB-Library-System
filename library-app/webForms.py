@@ -36,3 +36,7 @@ class BookForm(FlaskForm):
 class CheckOutForm(FlaskForm):
     card_id = IntegerField("Enter the Card ID", validators=[DataRequired()])
     submit = SubmitField('CheckOut')
+    
+class IsbnForm(FlaskForm):
+    isbn = StringField("Enter the ISBN", validators=[DataRequired()])
+    submit = SubmitField('Checkout')
