@@ -141,7 +141,6 @@ def isbn_checkout():
     if form.validate_on_submit():
         isbn = form.isbn.data
         form.isbn.data = ""
-        # ----------------------------------------------------------------
         query = (
                 db.session.query(Book)
                 .join(BookAuthors, Book.isbn == BookAuthors.isbn)
