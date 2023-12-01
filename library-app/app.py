@@ -161,7 +161,7 @@ def isbn_checkout():
             session['selected_books'] = [f"{book.isbn}_{book.title}_{', '.join(map(lambda a: a.name,book.authors))}"]
             return redirect(url_for('checkout'))
         else:
-            flash(f'The book with isbn: {isbn} is on loan')
+            flash(f'No result found for "{isbn}"')
     return render_template("isbn_checkout.html", form=form)
 
 # Handle checking out books
